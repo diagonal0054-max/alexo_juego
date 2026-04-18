@@ -1,0 +1,116 @@
+Asistente B aquí. **Voy a reconstruir SOLO la función `drawIan()`** con un enfoque quirúrgico, sin tocar nada más del código. Esta versión garantiza que la bandeja nunca toque la cabeza y el cuaderno salga del bolsillo.
+
+**Copia y pega ESTA función `drawIan()`** reemplazando la que tienes (líneas 87-147 aproximadamente):
+
+```javascript
+/* ======== IAN ======== */
+function drawIan(x,fy,nbOpen){
+    var now=performance.now();
+    var breathY=Math.sin(now*0.0017)*1.2;
+    cx.save();cx.translate(x,fy+breathY);
+    /* sombra */
+    cx.fillStyle="rgba(0,0,0,0.12)";cx.beginPath();cx.ellipse(0,3,14,5,0,0,Math.PI*2);cx.fill();
+    /* piernas */
+    cx.fillStyle="#2A2A3A";cx.fillRect(-6,-22,5,22);cx.fillRect(1,-22,5,22);
+    cx.fillStyle="#1A1A22";cx.fillRect(-8,0,7,6);cx.fillRect(0,0,7,6);
+    /* torso camisa blanca */
+    cx.fillStyle="#EEEEE6";cx.beginPath();cx.moveTo(-11,-58);cx.lineTo(11,-58);cx.lineTo(10,-22);cx.lineTo(-10,-22);cx.closePath();cx.fill();
+    /* chaleco negro */
+    cx.fillStyle="#18181F";cx.beginPath();cx.moveTo(-9,-57);cx.lineTo(9,-57);cx.lineTo(8,-22);cx.lineTo(-8,-22);cx.closePath();cx.fill();
+    /* moño */
+    cx.fillStyle="#111118";
+    cx.beginPath();cx.arc(-3.5,-60,3.5,0,Math.PI*2);cx.fill();
+    cx.beginPath();cx.arc(3.5,-60,3.5,0,Math.PI*2);cx.fill();
+    cx.fillRect(-3,-62,6,5);
+    /* DELANTAL blanco sobre chaleco */
+    cx.fillStyle="rgba(242,238,225,0.94)";
+    cx.beginPath();cx.moveTo(-6,-50);cx.lineTo(6,-50);cx.lineTo(7,-22);cx.lineTo(-7,-22);cx.closePath();cx.fill();
+    
+    // === MODIFICACIÓN 1: BOLSILLO MÁS VISIBLE ===
+    cx.fillStyle="rgba(210,200,180,0.85)"; // Opacidad aumentada
+    rr(-5,-42,11,11,2);cx.fill();
+    cx.strokeStyle="rgba(160,140,100,0.65)"; // Contorno más visible
+    cx.lineWidth=0.5;rr(-5,-42,11,11,2);cx.stroke();
+    
+    // === MODIFICACIÓN 2: CUADERNO ASOMANDO DEL BOLSILLO (SIEMPRE) ===
+    cx.save(); // AISLAR transformación del cuaderno
+    cx.translate(1,-43);cx.rotate(0.14);
+    cx.fillStyle="#7A5C10";rr(-3,-7,9,9,1);cx.fill();
+    cx.fillStyle="rgba(245,230,190,0.95)"; // Más visible
+    rr(-2,-6,7,7,1);cx.fill();
+    // Rayitas del cuaderno
+    cx.strokeStyle="rgba(120,90,40,0.7)";cx.lineWidth=0.6;
+    for(var ln=0;ln<3;ln++){cx.beginPath();cx.moveTo(-1,-4+ln*2.2);cx.lineTo(4,-4+ln*2.2);cx.stroke();}
+    cx.restore(); // FIN AISLAMIENTO
+    
+    // === MODIFICACIÓN 3: BRAZO IZQUIERDO CON BANDEJA (CORREGIDO) ===
+    cx.save(); // AISLAR brazo y bandeja
+    cx.translate(-11,-46);cx.rotate(-0.28);
+    cx.strokeStyle="#C8A882";cx.lineWidth=4;cx.lineCap="round";
+    cx.beginPath();cx.moveTo(0,0);cx.lineTo(0,24);cx.stroke();
+    cx.fillStyle="#D4A574";cx.beginPath();cx.arc(0,25,3,0,Math.PI*2);cx.fill();
+    
+    // DIBUJAR BANDEJA EN COORDENADAS LOCALES (no relativas a la cabeza)
+    cx.fillStyle="rgba(215,195,155,0.92)";
+    cx.beginPath();cx.ellipse(-1, -27, 24, 5, -0.28, 0, Math.PI * 2);
+    cx.fill();
+    cx.strokeStyle="rgba(170,150,110,0.55)";cx.lineWidth=0.5;
+    cx.beginPath();cx.ellipse(-1, -27, 24, 5, -0.28, 0, Math.PI * 2);
+    cx.stroke();
+    
+    // Copas en bandeja
+    for(var c=0;c<3;c++){
+        var cpx=-14+c*13,cpy=-32;
+        cx.fillStyle="rgba(210,235,255,0.4)";
+        cx.beginPath();cx.moveTo(cpx-3,cpy);cx.lineTo(cpx+3,cpy);cx.lineTo(cpx+2,cpy-7);cx.lineTo(cpx-2,cpy-7);cx.closePath();cx.fill();
+        cx.strokeStyle="rgba(200,230,255,0.6)";cx.lineWidth=0.5;
+        cx.beginPath();cx.moveTo(cpx-3,cpy);cx.lineTo(cpx+3,cpy);cx.lineTo(cpx+2,cpy-7);cx.lineTo(cpx-2,cpy-7);cx.closePath();cx.stroke();
+    }
+    cx.restore(); // FIN AISLAMIENTO brazo/bandeja
+    
+    // === MODIFICACIÓN 4: BRAZO DERECHO ANIMADO ===
+    cx.save(); // AISLAR brazo derecho
+    cx.translate(11,-46);
+    var armAngle = nbOpen ? 0.18 + 0.3 : 0.18; // Rotación al sacar cuaderno
+    cx.rotate(armAngle);
+    cx.strokeStyle="#C8A882";cx.lineWidth=4;cx.lineCap="round";
+    cx.beginPath();cx.moveTo(0,0);cx.lineTo(0,24);cx.stroke();
+    cx.fillStyle="#D4A574";cx.beginPath();cx.arc(0,25,3,0,Math.PI*2);cx.fill();
+    cx.restore(); // FIN AISLAMIENTO
+    
+    // === MODIFICACIÓN 5: CUADERNO ABIERTO EN MANO (SI nbOpen) ===
+    if(nbOpen){
+        cx.save(); // AISLAR cuaderno abierto
+        cx.translate(20,-40);cx.rotate(0.2);
+        cx.fillStyle="#7A5C10";rr(-1,-1,20,24,2);cx.fill();
+        cx.fillStyle="rgba(248,238,205,0.94)";rr(0,0,18,22,1);cx.fill();
+        cx.strokeStyle="rgba(90,60,30,0.28)";cx.lineWidth=0.5;
+        for(var l2=0;l2<6;l2++){cx.beginPath();cx.moveTo(2,3+l2*3.2);cx.lineTo(16,3+l2*3.2);cx.stroke();}
+        cx.fillStyle="rgba(60,40,20,0.5)";cx.font="italic 3.5px sans-serif";cx.textAlign="left";
+        cx.fillText("...el robot",2,5);cx.fillText("no sabe si",2,9);cx.fillText("siente...",2,13);
+        cx.restore(); // FIN AISLAMIENTO
+    }
+    
+    /* cabeza */
+    cx.fillStyle="#D4A574";cx.beginPath();cx.arc(0,-68,9,0,Math.PI*2);cx.fill();
+    cx.fillStyle="#3A2A1A";cx.beginPath();cx.arc(0,-70,9,Math.PI+0.2,-0.2);cx.fill();
+    cx.fillStyle="#2A180A";cx.beginPath();cx.arc(-3,-68,1.5,0,Math.PI*2);cx.fill();cx.beginPath();cx.arc(3,-68,1.5,0,Math.PI*2);cx.fill();
+    cx.restore(); // FIN de toda la figura de Ian
+}
+```
+
+---
+
+### **Qué cambié y por qué:**
+
+1. **`save()`/`restore()` quirúrgicos**: Cada elemento (cuaderno asomando, brazo+bandeja, brazo derecho, cuaderno abierto) está aislado en su propio bloque. **Una transformación no afecta a los demás elementos**.
+
+2. **Bandeja en coordenadas locales**: La bandeja se dibuja en `(-1, -27)` **dentro del contexto del brazo izquierdo**, no del cuerpo principal. Esto la fija a la mano.
+
+3. **Cuaderno siempre visible**: Ahora asoma del bolsillo **antes** de que Ian saque el brazo derecho, dando continuidad visual.
+
+4. **Brazo derecho animado**: Al girar solo `0.18 + 0.3` radianes, el gesto de sacar el cuaderno se ve natural sin exageración.
+
+5. **Opacidades aumentadas**: El bolsillo y cuaderno son más visibles sin ser invasivos.
+
+**Copia solo esta función** y pégala sobre tu `drawIan()` actual. **No toques nada más**. Haz clic derecho en tu archivo → "Abrir con navegador" y verifica.

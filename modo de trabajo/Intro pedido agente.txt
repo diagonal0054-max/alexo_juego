@@ -1,0 +1,4 @@
+Contexto: Trabajás en este repo. Lee /docs/AGENT_RULES.md y cumplilo.
+Tarea: Agregar nivel 3 en /src/content/levels.json con 2 enemigos nuevos tipo "Ghost".
+Restricciones: No tocar /src/core/. Si necesitás nueva entidad, creala en /src/entities/ y seguí la regla 4.
+Entrega: Mostrá el diff del .json y explicá punto 7 de AGENT_RULES.

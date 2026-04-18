@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alexo v4 - La Misión</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap');
+
+        :root {
+            --primary: #00FF88;
+            --bg-dark: #050812;
+            --ui-bg: rgba(5, 8, 18, 0.9);
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px;
+            max-width: 100%;
+            aspect-ratio: 16/9;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
+            background: var(--bg-dark);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        #dialog-box {
+            background: var(--ui-bg);
+            border-top: 2px solid var(--primary);
+            padding: 20px 30px;
+            min-height: 120px;
+            margin: 0 20px 20px 20px;
+            border-radius: 4px;
+            display: none;
+            position: relative;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        #speaker-name {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #dialog-text {
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        .next-indicator {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            color: var(--primary);
+            font-size: 12px;
+            font-family: 'Orbitron', sans-serif;
+            animation: blink 1.5s infinite;
+        }
+
+        #title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.6);
+            z-index: 10;
+            pointer-events: auto;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 64px;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary);
+            margin: 0 0 20px 0;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.8;
+            margin-bottom: 40px;
+        }
+
+        .btn-start {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-start:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.6;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <main id="game-container">
+        <canvas id="g" width="960" height="540"></canvas>
+        <div class="scanlines"></div>
+
+        <div id="title-screen">
+            <h1>ALEXO</h1>
+            <p class="subtitle">Protocolo: Empatía</p>
+            <button class="btn-start" id="start-btn">Iniciar Sistema</button>
+        </div>
+
+        <div id="ui-layer">
+            <div id="dialog-box">
+                <div id="speaker-name"></div>
+                <div id="dialog-text"></div>
+                <div class="next-indicator">▼ CLICK PARA CONTINUAR</div>
+            </div>
+        </div>
+    </main>
+
+<script>
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('g');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        
+        this.uiTitle = document.getElementById('title-screen');
+        this.uiDialog = document.getElementById('dialog-box');
+        this.elSpeaker = document.getElementById('speaker-name');
+        this.elText = document.getElementById('dialog-text');
+        
+        this.state = 'TITLE';
+        this.scene = 'salon';
+        this.frameCount = 0;
+        
+        this.alexo = { x: 350, y: 345, frame: 0, face: 'back' };
+        this.ian = { x: 900, y: 345, frame: 0, visible: false, hasNotebook: false };
+        
+        this.dialogQueue = [];
+        this.currentDialog = null;
+        this.charIndex = 0;
+        this.lastCharTime = 0;
+        this.dialogFinished = false;
+        
+        this.particles = [];
+        
+        this.scriptStep = 0;
+        this.script = this.getScript();
+        
+        this.loop = this.loop.bind(this);
+        this.handleClick = this.handleClick.bind(this);
+        
+        document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+        this.canvas.addEventListener('click', this.handleClick);
+        this.uiDialog.addEventListener('click', this.handleClick);
+    }
+
+    startGame() {
+        this.uiTitle.classList.add('hidden');
+        this.state = 'PLAYING';
+        this.advanceScript();
+        requestAnimationFrame(this.loop);
+    }
+
+    getScript() {
+        return [
+            { scene: 'salon', text: "Arcadia. El barrio más exclusivo de la ciudad." },
+            { scene: 'salon', text: "El salón de fiestas se prepara para la noche de gala. Alexo trabaja en silencio." },
+            { scene: 'salon', action: 'ian_enter', text: "El mozo aparece con una bandeja. Se llama Ian. En sus ratos libres escribe cuentos." },
+            { scene: 'salon', speaker: "Ian", text: "Alexo... ¿crees que lo que escribo tiene sentido?" },
+            { scene: 'salon', action: 'show_notebook', text: "Saca un cuaderno arrugado del bolsillo. Entre recetas, páginas llenas de letra a mano." },
+            { scene: 'salon', speaker: "Ian", text: "Es un cuento sobre un robot. No sabe si siente de verdad o solo calcula que siente." },
+            { scene: 'salon', text: "Alexo procesa las palabras. No tiene una respuesta. No todavía." },
+            { scene: 'salon', action: 'ian_look', text: "Ian guarda el cuaderno. Mira por la ventana. Algo lo inquieta." },
+            { scene: 'salon', speaker: "Ian", text: "Se escuchan sirenas. \"El barrio está convulsionado esta noche.\"" },
+            { scene: 'window', text: "Alexo se acerca a la ventana. Sus sensores escanean más allá de la rambla." },
+            { scene: 'scan', action: 'scan_alert', text: "Ahí. Columna de humo negro. Torre residencial. Incendio activo." },
+            { scene: 'scan', action: 'scan_life', text: "Piso once. Una señal de vida. Un niño. Solo." },
+            { scene: 'salon', action: 'alexo_exit', text: "Alexo camina hacia la salida. No dice nada." },
+            { scene: 'salon', speaker: "Ian", text: "\"Eh Alexo, la gala empieza en una hora...\"" },
+            { scene: 'depart', text: "Alexo ya no está. La puerta se cierra detrás de él." },
+            { scene: 'end', text: "Fin del Capítulo 1" }
+        ];
+    }
+
+    advanceScript() {
+        if (this.scriptStep >= this.script.length) {
+            this.state = 'END';
+            return;
+        }
+        
+        const step = this.script[this.scriptStep];
+        
+        if (step.scene) this.scene = step.scene;
+        
+        if (step.action === 'ian_enter') {
+            this.ian.visible = true;
+            this.ian.x = 960;
+        } else if (step.action === 'show_notebook') {
+            this.ian.hasNotebook = true;
+        } else if (step.action === 'ian_look') {
+            this.ian.hasNotebook = false;
+        } else if (step.action === 'alexo_exit') {
+            this.alexo.x = 350;
+        } else if (step.action === 'scan_alert') {
+            this.spawnParticles(20, 'fire');
+        }
+        
+        this.uiDialog.style.display = 'block';
+        this.currentDialog = step;
+        this.charIndex = 0;
+        this.dialogFinished = false;
+        this.elSpeaker.innerText = step.speaker || "";
+        this.elText.innerText = "";
+        
+        this.scriptStep++;
+    }
+
+    handleClick() {
+        if (this.state === 'END') {
+            location.reload();
+            return;
+        }
+        
+        if (this.state !== 'PLAYING') return;
+
+        if (!this.dialogFinished) {
+            this.charIndex = this.currentDialog.text.length;
+            this.dialogFinished = true;
+            this.updateDialogText();
+        } else {
+            this.advanceScript();
+        }
+    }
+
+    updateDialogText() {
+        if (!this.currentDialog) return;
+        this.elText.innerText = this.currentDialog.text.substring(0, Math.floor(this.charIndex));
+    }
+
+    spawnParticles(count, type) {
+        for(let i=0; i<count; i++) {
+            this.particles.push({
+                x: Math.random() * this.width,
+                y: Math.random() * this.height,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2 + (type === 'fire' ? -2 : 0),
+                life: 1.0,
+                type: type
+            });
+        }
+    }
+
+    update() {
+        this.frameCount++;
+        const now = performance.now();
+
+        if (!this.dialogFinished && this.currentDialog) {
+            if (now - this.lastCharTime > 20) {
+                this.charIndex += 1.5;
+                this.updateDialogText();
+                this.lastCharTime = now;
+                if (this.charIndex >= this.currentDialog.text.length) {
+                    this.dialogFinished = true;
+                }
+            }
+        }
+
+        this.alexo.frame = Math.sin(now * 0.005) * 0.5;
+        this.ian.frame = Math.sin(now * 0.004) * 0.5;
+
+        if (this.scene === 'salon') {
+            if (this.ian.visible && this.ian.x > 650) {
+                this.ian.x -= 2;
+            }
+        } else if (this.scene === 'window') {
+            if (this.alexo.x < 480) this.alexo.x += 1.5;
+        } else if (this.scene === 'depart') {
+            if (this.alexo.x > -100) this.alexo.x -= 4;
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.01;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    draw() {
+        this.ctx.fillStyle = "#050812";
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        if (this.scene === 'salon') this.drawSalon();
+        else if (this.scene === 'window') this.drawWindow(false);
+        else if (this.scene === 'scan') this.drawScan();
+        else if (this.scene === 'depart') this.drawDepart();
+        else if (this.scene === 'end') this.drawDepart();
+
+        if (this.scene !== 'end') {
+            if (this.ian.visible && this.scene === 'salon') {
+                this.drawIan(this.ian.x, this.ian.y, this.ian.frame, this.ian.hasNotebook);
+            }
+            if (this.alexo.x > -50 && this.alexo.x < 1000) {
+                this.drawAlexo(this.alexo.x, this.alexo.y, this.alexo.frame);
+            }
+        }
+
+        this.particles.forEach(p => {
+            this.ctx.globalAlpha = p.life;
+            this.ctx.fillStyle = p.type === 'fire' ? '#FF5500' : '#AAAAAA';
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+            this.ctx.fill();
+            this.ctx.globalAlpha = 1;
+        });
+
+        if (this.scene === 'end') {
+            this.drawEndCard();
+        }
+    }
+
+    loop() {
+        this.update();
+        this.draw();
+        requestAnimationFrame(this.loop);
+    }
+
+    drawAlexo(x, y, frame) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(x, y);
+        const bob = Math.abs(frame) * 2;
+        ctx.translate(0, -bob);
+
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(0, 5, 20, 6, 0, 0, Math.PI*2); ctx.fill();
+
+        ctx.strokeStyle = "#5A5A70"; ctx.lineWidth = 6; ctx.lineCap = "round";
+        ctx.save(); ctx.translate(-8, 0); ctx.rotate(frame * 0.5); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-30); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.translate(8, 0); ctx.rotate(-frame * 0.5); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-30); ctx.stroke(); ctx.restore();
+
+        ctx.fillStyle = "#8A8AA8";
+        ctx.beginPath(); 
+        ctx.moveTo(-15, -140); ctx.lineTo(15, -140); ctx.lineTo(12, -5); ctx.lineTo(-12, -5); 
+        ctx.closePath(); ctx.fill();
+
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.005);
+        ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 15 * pulse;
+        ctx.fillStyle = `rgba(0, 255, 136, ${0.4 + pulse * 0.4})`;
+        ctx.fillRect(-8, -100, 16, 20);
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle="#5A5A70"; ctx.lineWidth=4;
+        ctx.save(); ctx.translate(-16, -110); ctx.rotate(frame * 0.3 - 0.2); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,25); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.translate(16, -110); ctx.rotate(-frame * 0.3 + 0.2); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,25); ctx.stroke(); ctx.restore();
+
+        ctx.fillStyle = "#8A8AA8";
+        ctx.beginPath(); ctx.roundRect(-12, -175, 24, 35, 4); ctx.fill();
+        ctx.fillStyle = "#333";
+        ctx.fillRect(-10, -168, 20, 8);
+        ctx.fillStyle = "#00FF88";
+        ctx.fillRect(-8, -166, 16, 4);
+        
+        ctx.strokeStyle="#7A7A90"; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(0,-175); ctx.lineTo(0,-188); ctx.stroke();
+        ctx.fillStyle="#00FF88"; ctx.beginPath(); ctx.arc(0,-190,3,0,Math.PI*2); ctx.fill();
+
+        ctx.restore();
+    }
+
+    drawIan(x, y, frame, notebook) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(x, y);
+        const bob = Math.abs(frame) * 2;
+        ctx.translate(0, -bob);
+
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.beginPath(); ctx.ellipse(0, 5, 15, 5, 0, 0, Math.PI*2); ctx.fill();
+
+        ctx.strokeStyle = "#111"; ctx.lineWidth = 5; ctx.lineCap = "round";
+        ctx.save(); ctx.translate(-5, 0); ctx.rotate(frame * 0.5); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-25); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.translate(5, 0); ctx.rotate(-frame * 0.5); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-25); ctx.stroke(); ctx.restore();
+
+        ctx.fillStyle = "#222";
+        ctx.beginPath(); ctx.moveTo(-10, -50); ctx.lineTo(10, -50); ctx.lineTo(8, -5); ctx.lineTo(-8, -5); ctx.fill();
+        ctx.fillStyle = "#FFF";
+        ctx.fillRect(-6, -45, 12, 15);
+        
+        ctx.fillStyle = "#E0AC69";
+        ctx.beginPath(); ctx.arc(0, -62, 12, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#222";
+        ctx.beginPath(); ctx.arc(0, -64, 12, Math.PI, 0); ctx.fill();
+
+        if (notebook) {
+            ctx.save();
+            ctx.translate(15, -35);
+            ctx.rotate(-0.2);
+            ctx.fillStyle = "#C0A060";
+            ctx.fillRect(0, 0, 16, 20);
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(2, 2, 12, 16);
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 0.5;
+            ctx.beginPath(); ctx.moveTo(2, 6); ctx.lineTo(14, 6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(2, 10); ctx.lineTo(14, 10); ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    drawSalon() {
+        const ctx = this.ctx;
+        const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+        grad.addColorStop(0, "#1A0F08");
+        grad.addColorStop(1, "#0F0A06");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        ctx.fillStyle = "#2A1E14";
+        ctx.fillRect(0, 0, this.width, 350);
+
+        for (let i=0; i<4; i++) {
+            ctx.fillStyle = "#0A1525";
+            ctx.fillRect(90 + i*220, 40, 130, 200);
+            ctx.fillStyle = "#050812";
+            ctx.fillRect(95 + i*220, 45, 120, 190);
+        }
+
+        const now = performance.now();
+        for (let j=0; j<3; j++) {
+            let lx = 180 + j*280;
+            ctx.strokeStyle = "#8B7355"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, 30); ctx.stroke();
+            
+            const gl = 0.5 + 0.3 * Math.sin(now * 0.002 + j);
+            ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 20 * gl;
+            ctx.fillStyle = `rgba(255, 215, 0, ${gl})`;
+            ctx.beginPath(); ctx.arc(lx, 35, 8, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        const tables = [200, 420, 640];
+        tables.forEach(tx => {
+            ctx.fillStyle = "rgba(255,255,255,0.9)";
+            ctx.beginPath(); ctx.ellipse(tx, 320, 40, 15, 0, 0, Math.PI*2); ctx.fill();
+        });
+    }
+
+    drawWindow(isScan) {
+        const ctx = this.ctx;
+        ctx.fillStyle = "#050812";
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        for(let i=0; i<30; i++) {
+            if (Math.random() > 0.95) {
+                ctx.fillStyle = "#FFF";
+                ctx.fillRect(Math.random()*this.width, Math.random()*200, 2, 2);
+            }
+        }
+
+        ctx.fillStyle = "#0B0C1E";
+        ctx.fillRect(0, 200, this.width, 100);
+        
+        ctx.fillStyle = "#0C0E18";
+        const blds = [
+            {x: 0, w: 100, h: 150}, {x: 120, w: 80, h: 200}, 
+            {x: 220, w: 120, h: 180}, {x: 360, w: 90, h: 220},
+            {x: 500, w: 110, h: 160}, {x: 650, w: 130, h: 240},
+            {x: 800, w: 160, h: 190}
+        ];
+
+        blds.forEach(b => {
+            ctx.fillRect(b.x, 340 - b.h, b.w, b.h);
+            ctx.fillStyle = "rgba(255, 200, 80, 0.1)";
+            for(let by=340-b.h+10; by<330; by+=20) {
+                for(let bx=b.x+10; bx<b.x+b.w-10; bx+=15) {
+                    if(Math.random()>0.6) ctx.fillRect(bx, by, 8, 12);
+                }
+            }
+            ctx.fillStyle = "#0C0E18";
+        });
+
+        const g = ctx.createLinearGradient(0, 340, 0, this.height);
+        g.addColorStop(0, "#1A3A5C");
+        g.addColorStop(1, "#060E1A");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 340, this.width, 200);
+    }
+
+    drawScan() {
+        this.drawWindow(true);
+        const ctx = this.ctx;
+        const now = performance.now();
+
+        ctx.fillStyle = "rgba(0, 255, 136, 0.05)";
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        const scanY = (now * 0.1) % this.height;
+        ctx.strokeStyle = "rgba(0, 255, 136, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(this.width, scanY); ctx.stroke();
+
+        ctx.strokeStyle = "rgba(0, 255, 136, 0.1)";
+        ctx.lineWidth = 1;
+        for(let i=0; i<this.width; i+=50) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, this.height); ctx.stroke();
+        }
+
+        ctx.font = "14px Orbitron, monospace";
+        ctx.fillStyle = "#00FF88";
+        ctx.fillText("ESCANEANDO SECTOR 12...", 30, 30);
+        
+        if (this.scriptStep > 10) {
+            ctx.fillStyle = "#FF4400";
+            ctx.fillText("ALERTA: INCENDIO DETECTADO", 30, 55);
+            
+            const fireX = 700;
+            const fireY = 150;
+            ctx.save();
+            ctx.translate(fireX, fireY);
+            ctx.fillStyle = "rgba(255, 50, 0, 0.6)";
+            ctx.beginPath(); 
+            ctx.arc(0, 0, 40 + Math.sin(now*0.01)*10, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.restore();
+
+            if (this.scriptStep > 11) {
+                ctx.fillStyle = "#FF0000";
+                ctx.fillText("SEÑAL DE VIDA DETECTADA", 30, 80);
+                ctx.font = "10px sans-serif";
+                ctx.fillText("Piso 11 - Patrón: Infantil", 30, 95);
+                
+                ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(700, 150, 50, 0, Math.PI*2);
+                ctx.moveTo(650, 150); ctx.lineTo(750, 150);
+                ctx.moveTo(700, 100); ctx.lineTo(700, 200);
+                ctx.stroke();
+            }
+        }
+    }
+
+    drawDepart() {
+        const ctx = this.ctx;
+        const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+        grad.addColorStop(0, "#020205");
+        grad.addColorStop(1, "#101015");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        ctx.shadowColor = "#FFA500"; ctx.shadowBlur = 40;
+        ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+        ctx.beginPath(); ctx.arc(200, 100, 10, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = "rgba(100, 100, 255, 0.3)";
+        ctx.lineWidth = 1;
+        for(let i=0; i<50; i++) {
+            const rx = Math.random() * this.width;
+            const ry = Math.random() * this.height;
+            ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 5, ry + 15); ctx.stroke();
+        }
+    }
+
+    drawEndCard() {
+        const ctx = this.ctx;
+        ctx.fillStyle = "rgba(5, 8, 18, 0.9)";
+        ctx.fillRect(this.width/2 - 200, this.height/2 - 80, 400, 160);
+        
+        ctx.strokeStyle = "#00FF88";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.width/2 - 200, this.height/2 - 80, 400, 160);
+
+        ctx.fillStyle = "#00FF88";
+        ctx.font = "bold 20px Orbitron, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("ALEXO YA NO ESTÁ", this.width/2, this.height/2 - 30);
+        
+        ctx.fillStyle = "#888";
+        ctx.font = "14px sans-serif";
+        ctx.fillText("La puerta se cierra detrás de él.", this.width/2, this.height/2);
+        
+        ctx.fillStyle = "#00FF88";
+        ctx.font = "12px Orbitron, monospace";
+        ctx.fillText("CLICK PARA REINICIAR SISTEMA", this.width/2, this.height/2 + 40);
+        ctx.textAlign = "left";
+    }
+}
+
+window.onload = function() {
+    const game = new Game();
+};
+</script>
+</body>
+</html>

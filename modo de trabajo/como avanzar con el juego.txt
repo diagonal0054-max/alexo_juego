@@ -1,0 +1,105 @@
+Tu juego suena como una aventura narrativa (point-and-click o walking sim) con historia de robot + mozo en zona exclusiva urbana. Asumiré que es 2D en Canvas/HTML5. Si es diferente (ej. top-down RPG), ajusta según sea.
+
+Principios Generales ANTES de Empezar
+Backup y Git: Sube tu código actual a GitHub (repo privado). Cada cambio = commit con mensaje claro (ej. "feat: mejora sprite robot").
+Testing Manual: Juega 5 minutos después de cada cambio. Usa Lighthouse (Chrome DevTools) para medir rendimiento.
+AI Controlada: Nunca digas "mejora todo el juego". Usa prompts como: "Solo modifica EL MÓDULO X, sin tocar Y ni Z. Mantén la estructura exacta."
+Tiempo por Fase: 1-2 días máximo por fase para no quemarte.
+Herramientas Esenciales:
+Editor: VS Code con extensiones Live Server + Prettier.
+Assets: Aseprite (sprites), Audacity (sonido), Figma (UI mockups).
+AI Visual: Leonardo.ai (gratis para sprites tileables), Runway (solo para cinemáticas).
+Optimización: TinyPNG (imágenes), Webpack si crece.
+FASE 1: AUDITORÍA Y PLAN (1 día)
+Objetivo: Entender qué SÍ funciona y qué NO, para priorizar.
+
+Juega y Lista Problemas (15 min):
+
+Categoría	Bueno	Malo/Prioridad Alta	Prioridad Media	Prioridad Baja
+Visuales				
+Jugabilidad				
+Historia				
+Rendimiento				
+Sonido/UI				
+Ejemplo basado en tu descripción:
+| Categoría | Bueno | Malo/Prioridad Alta | ...
+|-----------|-------|---------------------|...
+| Visuales | Historia clara | Imágenes pixeladas/low-res | Animaciones choppy |
+| Jugabilidad | Narrativa lineal | Controles imprecisos | ...
+
+Divide el Código en Módulos (30 min):
+
+text
+
+proyecto/
+├── index.html     # Estructura base (NO TOCAR)
+├── js/
+│   ├── main.js    # Loop principal, eventos (mínimo cambio)
+│   ├── player.js  # Robot/Mozo: movimiento, sprites
+│   ├── world.js   # Mapa/ciudad: fondos, colisiones
+│   ├── story.js   # Diálogos, guion (JSON para fácil edición)
+│   └── ui.js      # HUD, menús
+├── assets/
+│   ├── img/       # Sprites (robot.png, mozo.png, ciudad-bg.png)
+│   ├── audio/     # SFX (pasos.mp3, dialogo.mp3)
+│   └── data/      # story.json (guion)
+└── style.css      # Solo estilos visuales
+Define MVP Mejorado: "Historia jugable en 5 min con visuals polish, sin bugs".
+
+Salida: Tabla de problemas + estructura de carpetas limpia.
+
+FASE 2: VISUALES (2-3 días) - Tu Prioridad Actual
+Objetivo: Imágenes pro sin romper jugabilidad.
+
+Upscale Existentes (Día 1):
+
+Usa Upscayl (gratis): Sube tus imgs actuales → 4x upscale.
+Prompt AI para nuevos: En Leonardo.ai: "Robot futurista steampunk, sprite 2D pixel art 128x128, vista lateral para platformer, --ar 1:1 --style pixel"
+Sprites Temáticos (Robot + Mozo + Ciudad):
+
+Asset	Prompt Ejemplo (Leonardo.ai/Midjourney)	Integración JS
+Robot	"Robot sirviente elegante, metal pulido, ojos LED, pose idle, pixel art 64x128"	player.js: Sprite sheet con ctx.drawImage(sprite, frame*64, 0, 64,128, x,y,w,h)
+Mozo	"Mozo de hotel lujoso, traje frac, bigote, animación caminar, pixel art"	Igual, anima con requestAnimationFrame
+Ciudad	"Zona exclusiva cyberpunk: rascacielos neón, calles empedradas, parallax bg, tileable"	world.js: Capas parallax (bgFar.move(-0.5*speed))
+Animaciones Simples (Día 2):
+
+Crea spritesheets (hojas de sprites) en Aseprite.
+Integra: 4 frames idle/walk para robot/mozo.
+Test: Corre local: live-server . → Verifica FPS >60.
+
+AI Prompt para Código: "En player.js, solo añade animación walk de 4 frames al robot EXISTENTE. No cambies movimiento ni colisiones. Código actual: [pega tu código]."
+
+Salida: Carpeta assets/img/ full HD, anims suaves.
+
+FASE 3: JUGABILIDAD (2 días)
+Controles Fluidos: A/D o arrows para mover robot/mozo. Añade inercia (aceleración).
+Interacciones: Click en objetos → diálogo (usa story.json).
+Progreso Historia: Estados: intro → diálogo mozo → escape ciudad.
+Mecánicas Simples: Recoge items (llaves para zonas exclusivas).
+Prompt AI: "Solo en world.js, añade colisiones AABB simples para puertas. Código actual: [pega]. No toques nada más."
+
+FASE 4: NARRATIVA Y SONIDO (1-2 días)
+Guion en JSON:
+JSON
+
+{
+  "escenas": [
+    {"id":1, "texto": "El robot despierta en la suite...", "opciones": ["Hablar con mozo", "Explorar"]},
+    ...
+  ]
+}
+Sonido: Free SFX de Freesound.org. Añade new Audio('pasos.mp3').play() en eventos.
+Voiceover: Usa ElevenLabs (gratis 10k chars) para diálogos robot/mozo.
+FASE 5: OPTIMIZACIÓN Y POLISH (1 día)
+Rendimiento: Offscreen canvas para fondos. Limita draw calls.
+UI: Botones responsive, fuente Google Fonts ("Orbitron" para cyber).
+Mobile: Añade touch events.
+FASE 6: TESTING Y LANZAMIENTO (Ongoing)
+Playtest: Comparte itch.io demo. Pide feedback en Reddit r/gamedev.
+Itera: Vuelve a Fase 1 con feedback.
+Monetiza/Publica: itch.io, Newgrounds.
+Próximos Pasos Inmediatos
+Comparte tu tabla de problemas (de Fase 1) o link a GitHub/repo.
+Pega un módulo específico (ej. player.js) → Te ayudo con prompt AI exacto.
+Género exacto? (¿Interactivo? ¿Puzzles? ¿Combate?)
+Esta estructura evita el caos: Cambios modulares = avances lineales. ¡En 1 semana tendrás un juego visualmente top! ¿Empezamos con Fase 1? 😎

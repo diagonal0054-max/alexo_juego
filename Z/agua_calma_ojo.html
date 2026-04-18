@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alexo v4 - Corrección Definitiva</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap');
+
+        :root {
+            /* Colores Originales V4 */
+            --primary: #00FF88;
+            --danger: #FF4400;
+            --ui-bg: rgba(5, 8, 18, 0.9);
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            color: var(--text-main);
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px; 
+            height: 540px;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
+            background: var(--bg-dark);
+            overflow: hidden;
+            cursor: pointer;
+            border-top: 40px solid #000;
+            border-bottom: 40px solid #000;
+            box-sizing: content-box; 
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 40px;
+            box-sizing: border-box;
+        }
+
+        #dialog-box {
+            background: var(--ui-bg);
+            border-top: 2px solid var(--primary);
+            padding: 20px 30px;
+            min-height: 110px;
+            margin: 0 40px 20px 40px;
+            
+            /* FIX: Display none por defecto, se controla por JS simple */
+            display: none; 
+            
+            position: relative;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+        }
+
+        #speaker-name {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #dialog-text {
+            font-size: 18px;
+            line-height: 1.5;
+            color: #fff;
+        }
+
+        .next-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            animation: pulse 2s infinite;
+        }
+
+        #title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 60px;
+            color: var(--primary);
+            text-shadow: 0 0 30px var(--primary);
+            margin: 0;
+            letter-spacing: 4px;
+        }
+
+        .btn-start {
+            margin-top: 40px;
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-start:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); }
+
+        .film-grain {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 50; opacity: 0.4;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <main id="game-container">
+        <canvas id="g" width="960" height="540"></canvas>
+        <div class="film-grain"></div>
+
+        <div id="title-screen">
+            <h1>ALEXO</h1>
+            <p style="color: #888; margin-top: 10px;">PROTOCOLO: RESCATE</p>
+            <button class="btn-start" id="start-btn">INICIAR SECUENCIA</button>
+        </div>
+
+        <div id="ui-layer">
+            <div id="dialog-box">
+                <div id="speaker-name"></div>
+                <div id="dialog-text"></div>
+                <div class="next-indicator">▼ AVANZAR</div>
+            </div>
+        </div>
+    </main>
+
+<script>
+/**
+ * ALEXO V4.1: RESTAURACIÓN ORIGINAL
+ * - Historia Original (Rescate/Incendio)
+ * - Diálogos (Display: Block/None simple y funcional)
+ * - Ian (Ojos corregidos)
+ * - Agua (Estática)
+ */
+class CinematicGame {
+    constructor() {
+        this.canvas = document.getElementById('g');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        this.floorY = 380;
+
+        // Camera System
+        this.camera = { x: 480, y: 270, targetX: 480, targetY: 270, shake: 0 };
+
+        // UI
+        this.uiTitle = document.getElementById('title-screen');
+        this.uiDialog = document.getElementById('dialog-box');
+        this.elSpeaker = document.getElementById('speaker-name');
+        this.elText = document.getElementById('dialog-text');
+
+        // State
+        this.state = 'TITLE'; 
+        this.stepIndex = 0;
+        this.waitingForInput = false;
+        
+        // Entities
+        this.alexo = { x: 480, y: this.floorY, state: 'IDLE', facing: 1, frame: 0, animState: 'WORK' };
+        this.kid = { x: 0, y: 0, visible: false, state: 'HIDING', owner: 'NONE' }; 
+        this.ian = { x: 900, y: this.floorY, visible: false, state: 'IDLE', holdingTray: true, holdingPaper: false };
+        this.rescuers = []; 
+
+        // Environment
+        this.ambience = { fire: 0, smoke: 0, darkness: 0, infrared: false, fog: 0, perceptionGlitch: false };
+        this.particles = [];
+        this.time = 0;
+        
+        // Birds & Water
+        this.seagulls = [];
+        for(let i=0; i<5; i++) {
+            this.seagulls.push({ x: Math.random()*960, y: Math.random()*200, vx: 1+Math.random(), vy: Math.random()*0.2 });
+        }
+        this.waterLines = [];
+        for(let i=0; i<20; i++) {
+            this.waterLines.push({ x: Math.random()*960, y: Math.random() * 400 + this.floorY });
+        }
+
+        // Script: ORIGINAL HISTORY RESTORED
+        this.script = this.getDirectorScript();
+
+        // Init
+        document.getElementById('start-btn').addEventListener('click', () => this.start());
+        document.getElementById('game-container').addEventListener('click', () => this.handleInput());
+        
+        this.loop = this.loop.bind(this);
+    }
+
+    start() {
+        this.uiTitle.style.display = 'none';
+        this.state = 'PLAYING';
+        this.runStep();
+        requestAnimationFrame(this.loop);
+    }
+
+    getDirectorScript() {
+        return [
+            // ACT 1: SALON
+            { type: 'SCENE', bg: 'SALON', cam: { x: 480, y: 300 }, action: () => { this.alexo.x = 300; this.alexo.animState = 'WORK'; this.ian.visible = true; this.ian.x = 900; this.ian.holdingTray = true; } },
+            { type: 'WAIT', frames: 60 },
+            { type: 'CAMERA_MOVE', x: 300, y: 350, speed: 0.03 },
+            { type: 'DIALOG', text: "El salón de fiestas se prepara para la noche de gala. Alexo trabaja en silencio.", speaker: "" },
+            { type: 'MOVE', actor: 'ALEXO', x: 450, y: this.floorY, speed: 2 },
+            { type: 'CAMERA_MOVE', x: 450, y: 350, speed: 0.02 },
+            { type: 'DIALOG', text: "Ian termina de ajustar los manteles.", speaker: "" },
+            { type: 'MOVE', actor: 'IAN', x: 550, y: this.floorY, speed: 2.5 },
+            { type: 'DIALOG', text: "Alexo... ¿crees que lo que escribo tiene sentido?", speaker: "Ian" },
+            
+            // ACT 2: VENTANA
+            { type: 'SCENE', bg: 'WINDOW', cam: { x: 480, y: 300 }, action: () => { this.ian.visible = false; this.alexo.visible = false; } },
+            { type: 'CAMERA_MOVE', x: 700, y: 250, speed: 0.02 },
+            { type: 'WAIT', frames: 120 },
+            { type: 'DIALOG', text: "Qué bella se ve la noche desde aquí.", speaker: "" },
+            
+            // PERCEPCIÓN
+            { type: 'CAMERA_MOVE', x: 900, y: 280, speed: 0.005 },
+            { type: 'EFFECT', name: 'PERCEPTION_START' }, 
+            { type: 'WAIT', frames: 60 },
+            { type: 'DIALOG', text: "Algo no está bien del otro lado del dique.", speaker: "" },
+            { type: 'EFFECT', name: 'PERCEPTION_END' },
+            { type: 'WAIT', frames: 40 },
+            { type: 'EFFECT', name: 'SIREN' },
+            { type: 'DIALOG', text: "¡Sirenas! ¡Un incendio!", speaker: "" },
+            { type: 'CAMERA_MOVE', x: 700, y: 250, speed: 0.01 },
+            { type: 'DIALOG', text: "Debo ir. Protocolo de emergencia.", speaker: "" },
+            
+            // ACT 3: SALIDA Y RESCATE
+            { type: 'SCENE', bg: 'STREET', cam: { x: 0, y: 300 }, action: () => { this.alexo.x = 100; this.alexo.state = 'RUN'; this.ian.visible = false; } },
+            { type: 'CAMERA_MOVE', x: 2000, y: 300, speed: 0.008 },
+            { type: 'WAIT', frames: 180 },
+            
+            { type: 'SCENE', bg: 'HALL_DARK', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 480; this.alexo.y = 400; this.alexo.state = 'WALK'; this.ambience.darkness = 0.9; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 150, speed: 2 },
+            { type: 'CAMERA_MOVE', x: 480, y: 150, speed: 0.05 },
+            { type: 'DIALOG', text: "Estructura comprometida.", speaker: "ALEXO (SYSTEM)" },
+            
+            { type: 'SCENE', bg: 'APARTMENT', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 300; this.alexo.y = 350; this.kid.visible = true; this.kid.x = 700; this.kid.y = 380; this.kid.state = 'HIDING'; this.ambience.fire = 1; }},
+            { type: 'MOVE', actor: 'ALEXO', x: 650, speed: 5 },
+            { type: 'DIALOG', text: "Tengo miedo...", speaker: "NIÑO" },
+            { type: 'DIALOG', text: "Estoy aquí para sacarte.", speaker: "ALEXO" },
+            { type: 'ANIMATION', actor: 'BOTH', anim: 'HUG' },
+            { type: 'WAIT', frames: 100 },
+            
+            // SECUENCIA FINAL CLARA (ENTREGA)
+            { type: 'SCENE', bg: 'STAIRS', cam: { x: 480, y: 400 }, action: () => { this.alexo.state = 'CARRY'; this.alexo.x = 480; this.alexo.y = 400; this.kid.owner = 'ALEXO'; this.ambience.infrared = false; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 100, speed: 3 }, 
+            { type: 'CAMERA_MOVE', x: 480, y: 100, speed: 0.04 },
+            { type: 'EFFECT', name: 'SHAKE' },
+            
+            // ENCUENTRO PISO 3
+            { type: 'SCENE', bg: 'HALL_LIGHT', cam: { x: 480, y: 270 }, action: () => { this.alexo.y = 270; this.ambience.fire = 0; this.ambience.darkness = 0.3; } },
+            
+            // Aparecen Rescatistas 
+            { type: 'SPAWN_RESCUERS' },
+            { type: 'MOVE_RESCUERS', x: 400, y: 270, speed: 2 }, 
+            
+            // Alexo llega al encuentro
+            { type: 'MOVE', actor: 'ALEXO', x: 500, speed: 2 },
+            { type: 'CAMERA_MOVE', x: 450, y: 270, speed: 0.02 }, 
+            
+            { type: 'DIALOG', text: "¡Toma al niño! Está a salvo.", speaker: "ALEXO" },
+            { type: 'ANIMATION', actor: 'RESCUER_ARMS' }, 
+            { type: 'TRANSFER_KID' }, 
+            { type: 'WAIT', frames: 80 }, 
+            { type: 'DIALOG', text: "Lo tengo. Gracias.", speaker: "RESCATISTA" },
+            
+            // ALEXO SE VA
+            { type: 'ANIMATION', actor: 'EXIT' }, 
+            { type: 'MOVE', actor: 'ALEXO', x: -100, speed: 3 },
+            
+            { type: 'SCENE', bg: 'EXIT_DOOR', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 480; this.alexo.y = 270; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 350, speed: 1.5 },
+            { type: 'WAIT', frames: 60 },
+            { type: 'FADE_TO_BLACK' },
+            { type: 'END' }
+        ];
+    }
+
+    runStep() {
+        if (this.stepIndex >= this.script.length) return;
+        const step = this.script[this.stepIndex];
+        this.uiDialog.style.display = 'none'; // Hide by default at start of step
+
+        switch(step.type) {
+            case 'SCENE':
+                this.scene = step.bg;
+                this.camera.targetX = step.cam.x;
+                this.camera.targetY = step.cam.y;
+                if (step.action) step.action();
+                this.nextStep(); 
+                break;
+            case 'CAMERA_MOVE':
+                this.camera.targetX = step.x;
+                this.camera.targetY = step.y;
+                this.nextStep();
+                break;
+            case 'DIALOG':
+                // FIX: Simple block display
+                this.uiDialog.style.display = 'block';
+                this.elSpeaker.innerText = step.speaker || "";
+                this.elText.innerText = step.text;
+                this.waitingForInput = true;
+                break;
+            case 'MOVE':
+                this.handleMovement(step);
+                break;
+            case 'WAIT':
+                setTimeout(() => this.nextStep(), (step.frames / 60) * 1000);
+                break;
+            case 'ANIMATION':
+                if (step.anim === 'HUG') { this.alexo.state = 'IDLE'; this.kid.x = this.alexo.x; this.kid.owner = 'ALEXO'; }
+                if (step.anim === 'RESCUER_ARMS') { if(this.rescuers[0]) this.rescuers[0].armsUp = true; }
+                if (step.anim === 'EXIT') { this.alexo.facing = -1; this.alexo.state = 'WALK'; }
+                this.nextStep();
+                break;
+            case 'TRANSFER_KID':
+                this.kid.owner = 'FIGHTER'; 
+                this.alexo.state = 'IDLE'; 
+                this.nextStep();
+                break;
+            case 'EFFECT':
+                if (step.name === 'PERCEPTION_START') this.ambience.perceptionGlitch = true;
+                if (step.name === 'PERCEPTION_END') this.ambience.perceptionGlitch = false;
+                if (step.name === 'SIREN') this.triggerSiren();
+                if (step.name === 'SHAKE') this.camera.shake = 20;
+                this.nextStep();
+                break;
+            case 'SPAWN_RESCUERS':
+                this.rescuers = [{ x: 900, y: 500, armsUp: false }, { x: 950, y: 510, armsUp: false }];
+                this.nextStep();
+                break;
+            case 'MOVE_RESCUERS':
+                this.handleRescuerMove(step.x, step.y, step.speed, () => this.nextStep());
+                break;
+            case 'FADE_TO_BLACK':
+                this.ambience.darkness = 1;
+                setTimeout(() => this.nextStep(), 2000);
+                break;
+            case 'END':
+                this.state = 'END';
+                this.elText.innerText = "FIN DE LA TRANSMISIÓN";
+                this.elSpeaker.innerText = "";
+                this.uiDialog.style.display = 'block';
+                break;
+        }
+    }
+
+    handleMovement(step) {
+        const actor = step.actor === 'ALEXO' ? this.alexo : this.ian;
+        const target = step.x; 
+        const animateMove = () => {
+            const dx = target - actor.x;
+            const dy = (step.y !== undefined ? step.y : actor.y) - actor.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < step.speed) {
+                actor.x = target; actor.y = step.y !== undefined ? step.y : actor.y; this.nextStep();
+            } else {
+                actor.x += (dx/dist) * step.speed; actor.y += (dy/dist) * step.speed;
+                requestAnimationFrame(animateMove);
+            }
+        };
+        animateMove();
+    }
+
+    handleRescuerMove(targetX, targetY, speed, callback) {
+        let allArrived = true;
+        this.rescuers.forEach(actor => {
+            const dx = targetX - actor.x;
+            const dy = targetY - actor.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > speed) {
+                actor.x += (dx/dist) * speed; actor.y += (dy/dist) * speed;
+                allArrived = false;
+            } else {
+                actor.x = targetX; actor.y = targetY;
+            }
+        });
+        if (!allArrived) requestAnimationFrame(() => this.handleRescuerMove(targetX, targetY, speed, callback));
+        else callback();
+    }
+
+    handleInput() {
+        if (this.state === 'END') { location.reload(); return; }
+        if (this.waitingForInput) {
+            this.waitingForInput = false;
+            this.uiDialog.style.display = 'none';
+            this.stepIndex++;
+            this.runStep();
+        }
+    }
+
+    nextStep() {
+        this.stepIndex++;
+        this.runStep();
+    }
+
+    triggerSiren() {
+        let count = 0;
+        const flash = () => {
+            if(count > 6) return;
+            this.ctx.fillStyle = count % 2 === 0 ? "rgba(255,0,0,0.2)" : "rgba(0,0,255,0.2)";
+            this.ctx.fillRect(0,0,this.width, this.height);
+            count++;
+            setTimeout(flash, 100);
+        }
+        flash();
+    }
+
+    loop() {
+        this.time++;
+        this.update();
+        this.draw();
+        if(this.state !== 'STOPPED') requestAnimationFrame(this.loop);
+    }
+
+    update() {
+        this.camera.x += (this.camera.targetX - this.camera.x) * 0.05;
+        this.camera.y += (this.camera.targetY - this.camera.y) * 0.05;
+        if (this.camera.shake > 0) this.camera.shake *= 0.9;
+        this.alexo.frame = Math.sin(this.time * 0.15) * 0.5;
+        
+        this.seagulls.forEach(s => {
+            s.x += s.vx;
+            s.y += Math.sin(this.time * 0.05) * 0.5;
+            if(s.x > 1000) s.x = -50;
+        });
+
+        if (this.ambience.fire > 0 && Math.random() > 0.5) {
+            this.particles.push({ x: Math.random() * this.width, y: this.height + 20, vx: (Math.random()-0.5)*2, vy: -Math.random()*3-1, life: 1.0, type: 'FIRE' });
+        }
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    draw() {
+        this.ctx.fillStyle = "#050812";
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        this.ctx.save();
+        const shakeX = (Math.random() - 0.5) * this.camera.shake;
+        const shakeY = (Math.random() - 0.5) * this.camera.shake;
+        this.ctx.translate(this.width/2 - this.camera.x + shakeX, this.height/2 - this.camera.y + shakeY);
+
+        if (this.scene === 'SALON') this.drawSalon();
+        else if (this.scene === 'WINDOW') this.drawWindow();
+        else if (this.scene === 'STREET') this.drawStreet();
+        else if (this.scene === 'HALL_DARK') this.drawHall(true);
+        else if (this.scene === 'APARTMENT') this.drawApartment();
+        else if (this.scene === 'STAIRS') this.drawStairs();
+        else if (this.scene === 'HALL_LIGHT') this.drawHall(false);
+        else if (this.scene === 'EXIT_DOOR') this.drawExitDoor();
+
+        if (this.alexo.visible !== false) this.drawAlexoPro(this.alexo.x, this.alexo.y, this.alexo.state, this.alexo.animState);
+        if (this.ian.visible) this.drawIanPro(this.ian.x, this.ian.y, this.ian.holdingTray, this.ian.holdingPaper);
+        
+        if (this.kid.visible) {
+            let kx = this.kid.x;
+            let ky = this.kid.y;
+            if (this.kid.owner === 'ALEXO') {
+                kx = this.alexo.x;
+                ky = this.alexo.y; 
+            } else if (this.kid.owner === 'FIGHTER' && this.rescuers.length > 0) {
+                kx = this.rescuers[0].x;
+                ky = this.rescuers[0].y;
+            }
+            this.drawKidPro(kx, ky, this.kid.state);
+        }
+
+        if (this.rescuers.length > 0) this.rescuers.forEach(r => this.drawRescuerPro(r.x, r.y, r.armsUp));
+
+        this.ctx.restore();
+        this.drawLighting();
+    }
+
+    // === SCENES ===
+
+    drawSalon() {
+        const ctx = this.ctx;
+        const floorGrad = ctx.createLinearGradient(0, this.floorY, 0, this.height);
+        floorGrad.addColorStop(0, "#2a2015"); floorGrad.addColorStop(1, "#1a1510");
+        ctx.fillStyle = floorGrad; ctx.fillRect(0, 0, 960, this.height - this.floorY);
+        ctx.fillStyle = "#3a3025"; ctx.fillRect(0, 0, 960, this.floorY);
+
+        for(let i=0; i<4; i++) {
+            ctx.fillStyle = "#050510"; ctx.fillRect(90 + i*220, 40, 130, 200);
+        }
+        ctx.fillStyle = "#FFD700";
+        for(let i=0; i<3; i++) {
+            const cx = 220 + i*220;
+            ctx.globalAlpha = 0.3 + Math.sin(this.time * 0.05 + i)*0.1;
+            ctx.beginPath(); ctx.arc(cx, 40, 40, 0, Math.PI*2); ctx.fill();
+            ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 30;
+            ctx.beginPath(); ctx.arc(cx, 40, 10, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        ctx.globalAlpha = 1;
+        const tables = [250, 470, 690];
+        tables.forEach(tx => {
+            ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.ellipse(tx, this.floorY, 40, 12, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "rgba(200,200,255,0.4)"; ctx.fillRect(tx+10, this.floorY-2, 4, 4);
+        });
+    }
+
+    drawWindow() {
+        const ctx = this.ctx;
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, this.floorY);
+        skyGrad.addColorStop(0, "#050812");
+        skyGrad.addColorStop(0.7, "#2a1a40"); 
+        skyGrad.addColorStop(1, "#403010");
+        ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, 960, this.floorY);
+
+        ctx.fillStyle = "#080808";
+        for(let i=0; i<15; i++) {
+            let h = 100 + Math.random() * 200;
+            ctx.fillRect(i * 150 - 500, this.floorY - h, 120, h + 500);
+        }
+        ctx.fillStyle = "#1a0505"; ctx.fillRect(850, 100, 120, 400);
+
+        ctx.fillStyle = "#051020"; 
+        ctx.fillRect(0, this.floorY, 960, 500);
+        
+        // Static Water Lines
+        ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth=1;
+        for(let i=0; i<this.waterLines.length; i++) {
+            const line = this.waterLines[i];
+            ctx.beginPath(); ctx.moveTo(line.x, this.floorY); ctx.lineTo(line.x, line.y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = "#FFF"; ctx.lineWidth=1.5;
+        this.seagulls.forEach(s => {
+            ctx.save(); ctx.translate(s.x, s.y);
+            ctx.beginPath(); ctx.moveTo(-5, -2); ctx.lineTo(0, 2); ctx.lineTo(5, -2); ctx.stroke();
+            ctx.restore();
+        });
+
+        if (Math.random() > 0.9) {
+             ctx.fillStyle = "#FFD700";
+             ctx.beginPath(); ctx.arc(Math.random()*960, this.floorY + Math.random()*100, 2, 0, Math.PI*2); ctx.fill();
+        }
+
+        ctx.strokeStyle = "#2c2c2c"; ctx.lineWidth = 10;
+        ctx.strokeRect(600, 50, 300, 300);
+        ctx.beginPath(); ctx.moveTo(750, 50); ctx.lineTo(750, 350); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(600, 200); ctx.lineTo(900, 200); ctx.stroke();
+    }
+    
+    drawStreet() { 
+        this.ctx.fillStyle = "#111"; this.ctx.fillRect(0, 0, 960, 540);
+        const fireWorldX = 2000;
+        this.ctx.shadowBlur = 100; this.ctx.shadowColor = "red";
+        this.ctx.fillStyle = "rgba(255, 50, 0, 0.2)"; this.ctx.fillRect(fireWorldX - 200, 0, 400, 600);
+        this.ctx.shadowBlur = 0;
+    }
+    drawHall(isDark) {
+        this.ctx.fillStyle = "#0a0a0a"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.fillStyle = "#151515"; this.ctx.fillRect(0, -200, 960, 600); 
+        this.ctx.strokeStyle = "#333"; this.ctx.beginPath();
+        this.ctx.moveTo(-400, 400); this.ctx.lineTo(400, 100);
+        this.ctx.moveTo(1400, 400); this.ctx.lineTo(600, 100); this.ctx.stroke();
+        if (isDark) {
+            this.ctx.shadowBlur = 80; this.ctx.shadowColor = "red";
+            this.ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+            this.ctx.beginPath(); this.ctx.arc(480, 100, 50, 0, Math.PI*2); ctx.fill();
+            this.ctx.shadowBlur = 0;
+        }
+    }
+    drawApartment() {
+        this.ctx.fillStyle = "#2a1005"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.shadowBlur = 60; this.ctx.shadowColor = "orange";
+        this.ctx.fillStyle = "#ff4400"; this.ctx.fillRect(600, 50, 200, 200);
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = "#1a0a00";
+        this.ctx.fillRect(100, 350, 150, 80); 
+        this.ctx.fillStyle = "rgba(0,0,0,0.5)"; this.ctx.fillRect(0, 0, 960, 540);
+    }
+    drawStairs() {
+        this.ctx.fillStyle = "#111"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.strokeStyle = "#222"; this.ctx.lineWidth = 4;
+        for(let i=0; i<10; i++) {
+            let y = 50 + i * 50;
+            this.ctx.beginPath(); this.ctx.moveTo(300, y); ctx.lineTo(660, y); ctx.stroke();
+        }
+        this.ctx.strokeStyle = "#444"; ctx.beginPath();
+        this.ctx.moveTo(310, 50); ctx.lineTo(310, 550);
+        this.ctx.moveTo(650, 50); ctx.lineTo(650, 550); ctx.stroke();
+    }
+    drawExitDoor() {
+        this.ctx.fillStyle = "#080808"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.fillStyle = "#222"; this.ctx.fillRect(400, 150, 160, 300);
+        this.ctx.strokeStyle = "#444"; this.ctx.strokeRect(400, 150, 160, 300);
+        this.ctx.shadowBlur = 50; this.ctx.shadowColor = "#00FF88";
+        this.ctx.fillStyle = "rgba(0, 255, 136, 0.1)";
+        this.ctx.fillRect(410, 160, 140, 280); this.ctx.shadowBlur = 0;
+    }
+
+    // === CHARACTERS ===
+
+    drawAlexoPro(x, y, state, animState) {
+        const ctx = this.ctx; ctx.save(); ctx.translate(x, y);
+        let workLean = 0;
+        if (animState === 'WORK') workLean = Math.sin(this.time * 0.05) * 0.2;
+
+        if (state === 'RUN') ctx.rotate(0.2);
+        const bob = Math.sin(this.time * (state==='RUN'?0.3:0.1)) * (state === 'RUN' ? 5 : 2);
+        
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.beginPath(); ctx.ellipse(0, 45, 35, 12, 0, 0, Math.PI*2); ctx.fill();
+
+        const legSwing = Math.sin(this.time * (state==='RUN'?0.3:0.05)) * (state === 'RUN' ? 25 : 5);
+        const drawLeg = (side, swing) => {
+            ctx.save(); ctx.translate(side*12, 40 + bob); ctx.rotate(swing*side*0.02);
+            ctx.fillStyle = "#555"; ctx.fillRect(-6, -20, 12, 25);
+            ctx.beginPath(); ctx.arc(0, 5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.save(); ctx.rotate(swing*side*0.04);
+            ctx.fillStyle = "#444"; ctx.fillRect(-5, 5, 10, 25);
+            ctx.fillStyle = "#333"; ctx.fillRect(-7, 28, 14, 8);
+            ctx.restore(); ctx.restore();
+        };
+        drawLeg(-1, legSwing); drawLeg(1, -legSwing);
+
+        ctx.save(); ctx.rotate(workLean);
+        ctx.fillStyle = "#666";
+        ctx.beginPath(); ctx.moveTo(-22, -40 + bob); ctx.lineTo(22, -40 + bob); 
+        ctx.lineTo(18, 40 + bob); ctx.lineTo(-18, 40 + bob); ctx.closePath(); ctx.fill();
+        
+        const corePulse = 0.5 + Math.sin(this.time * 0.1) * 0.5;
+        ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(0, 255, 136, ${corePulse})`;
+        ctx.beginPath(); ctx.arc(0, 0 + bob, 8, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#444"; ctx.fillRect(-15, 40 + bob, 30, 10);
+        ctx.restore();
+
+        ctx.save(); ctx.translate(0, -50 + bob);
+        ctx.fillStyle = "#777";
+        ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI, 0); ctx.lineTo(22, 15); ctx.lineTo(-22, 15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#00FF88"; ctx.shadowColor="#00FF88"; ctx.shadowBlur=8;
+        ctx.fillRect(-18, -5, 36, 8); ctx.shadowBlur=0;
+        ctx.strokeStyle="#555"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(0,-35); ctx.stroke();
+        ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(0,-35, 2, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        const armSwing = Math.sin(this.time * (state==='RUN'?0.3:0.1)) * (state === 'RUN' ? 30 : 5);
+        const drawArm = (side, swing) => {
+            ctx.save(); ctx.translate(side*22, -30 + bob); ctx.rotate(swing*side*0.02);
+            ctx.fillStyle = "#555"; ctx.fillRect(-5, 0, 10, 25);
+            ctx.fillStyle = "#333"; ctx.fillRect(-4, 22, 8, 15);
+            ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(0, 38, 5, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        };
+        drawArm(-1, armSwing); drawArm(1, -armSwing);
+
+        ctx.restore();
+    }
+
+    drawIanPro(x, y, hasTray, hasPaper) {
+        const ctx = this.ctx; ctx.save(); ctx.translate(x, y);
+        const bob = Math.sin(this.time * 0.1) * 2;
+        ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.ellipse(0, 5, 25, 8, 0, 0, Math.PI*2); ctx.fill();
+        const legSwing = Math.sin(this.time * 0.1) * 5;
+        ctx.strokeStyle = "#0a0a0a"; ctx.lineWidth = 8; ctx.lineCap="round";
+        ctx.beginPath(); ctx.moveTo(-8, 0+bob); ctx.lineTo(-8-legSwing, 35+bob); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, 0+bob); ctx.lineTo(8+legSwing, 35+bob); ctx.stroke();
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.moveTo(-16, -55 + bob); ctx.lineTo(16, -55 + bob); ctx.lineTo(12, 0 + bob); ctx.lineTo(-12, 0 + bob); ctx.fill();
+        ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.moveTo(0,-55+bob); ctx.lineTo(8,-50+bob); ctx.lineTo(0,-40+bob); ctx.lineTo(-8,-50+bob); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.fillRect(-5, -45+bob, 10, 4); ctx.strokeStyle = "#111"; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(-16, -50+bob); ctx.lineTo(-18, 0+bob); ctx.stroke(); ctx.beginPath(); 
+        if (hasPaper) { ctx.moveTo(16, -50+bob); ctx.lineTo(30, -40+bob); } 
+        else { ctx.moveTo(16, -50+bob); ctx.lineTo(20, -15+bob); } ctx.stroke();
+        if (hasTray && !hasPaper) {
+            ctx.save(); ctx.translate(35, -5+bob); ctx.fillStyle = "#AAA"; ctx.beginPath(); ctx.ellipse(0, 0, 25, 8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(-3, -20); ctx.lineTo(3, -20); ctx.lineTo(5, -5); ctx.fill();
+            ctx.fillStyle = "#800"; ctx.fillRect(-3, -15, 6, 8); ctx.restore();
+        }
+        if (hasPaper) {
+            ctx.save(); ctx.translate(35, -50+bob); ctx.rotate(-0.3); ctx.fillStyle = "#EEE"; ctx.fillRect(0, 0, 30, 40); ctx.fillStyle = "#000"; ctx.font="8px monospace"; ctx.fillText("...", 2, 10); ctx.restore();
+        }
+        ctx.save(); ctx.translate(0, -65 + bob);
+        ctx.fillStyle = "#dcb"; ctx.beginPath(); ctx.ellipse(0, 0, 12, 15, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -12, 12, Math.PI, 0); ctx.fill();
+        
+        // FIX: Ian Eyes (Corrected positions)
+        ctx.fillStyle = "#FFF"; 
+        
+        // Left Eye (Our left, screen left) - x: -2
+        ctx.beginPath(); ctx.ellipse(-2, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        
+        // Right Eye (Our right, screen right) - x: 3
+        ctx.beginPath(); ctx.ellipse(3, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = "#000"; 
+        
+        // Left Pupil
+        ctx.beginPath(); ctx.arc(-2, -3, 1, 0, Math.PI*2); ctx.fill();
+        
+        // Right Pupil
+        ctx.beginPath(); ctx.arc(3, -3, 1, 0, Math.PI*2); ctx.fill();
+        
+        ctx.restore(); ctx.restore();
+    }
+
+    drawKidPro(x, y, state) {
+        const ctx = this.ctx; ctx.save(); ctx.translate(x, y);
+        const shake = state === 'CRY' ? (Math.random()-0.5)*3 : 0;
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(0, 10, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#d32f2f"; ctx.fillRect(-12+shake, -30, 24, 30);
+        ctx.fillStyle = "#d32f2f"; ctx.beginPath(); ctx.ellipse(-14+shake, -15, 5, 8, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(14+shake, -15, 5, 8, -0.5, 0, Math.PI*2); ctx.fill();
+        ctx.save(); ctx.translate(0+shake, -42);
+        ctx.fillStyle = "#e0ac69"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#3e2723"; ctx.beginPath(); ctx.arc(0, -10, 14, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.ellipse(-5, -2, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(5, -2, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-5, -2, 1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(5, -2, 1, 0, Math.PI*2); ctx.fill();
+        if (state === 'CRY') {
+            ctx.fillStyle = "rgba(100, 149, 237, 0.7)"; ctx.beginPath(); ctx.ellipse(-5, 5, 1, 4, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(5, 5, 1, 4, 0, 0, Math.PI*2); ctx.fill();
+        } ctx.beginPath(); ctx.arc(0, 6, 3, 0, Math.PI); ctx.stroke(); ctx.restore(); ctx.restore();
+    }
+
+    drawRescuerPro(x, y, armsUp) {
+        const ctx = this.ctx; ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = "#FFD700"; 
+        ctx.fillRect(-15, -55, 30, 65);
+        ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(0, -65, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#333"; ctx.fillRect(-12, -68, 24, 6);
+        ctx.fillStyle = "#FFD700";
+        if (armsUp) {
+            ctx.save(); ctx.translate(-15, -50); ctx.rotate(-0.5); ctx.fillRect(-5, 0, 10, 30); ctx.restore();
+            ctx.save(); ctx.translate(15, -50); ctx.rotate(0.5); ctx.fillRect(-5, 0, 10, 30); ctx.restore();
+        } else {
+            ctx.fillRect(-20, -50, 8, 30); ctx.fillRect(12, -50, 8, 30);
+        }
+        ctx.restore();
+    }
+
+    drawLighting() {
+        const ctx = this.ctx;
+        let darkness = this.ambience.darkness;
+        if (this.scene === 'APARTMENT') darkness = 0.4;
+        if (this.scene === 'HALL_DARK') darkness = 0.8;
+        
+        if (this.ambience.perceptionGlitch) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'difference';
+            ctx.fillStyle = "rgba(50, 255, 50, 0.1)"; 
+            ctx.fillRect(0, 200, 960, 200); 
+            ctx.restore();
+            ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.1})`;
+            for(let i=0; i<10; i++) ctx.fillRect(Math.random()*960, 200 + Math.random()*100, 2, 50);
+        }
+
+        const grad = ctx.createRadialGradient(480, 270, 100, 480, 270, 600);
+        grad.addColorStop(0, "rgba(0,0,0,0)"); grad.addColorStop(1, `rgba(0,0,0,${darkness})`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            if (p.type === 'FIRE') {
+                ctx.fillStyle = `rgba(255, ${Math.random()*100 + 50}, 0, ${p.life})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 5 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        });
+
+        if (this.ambience.fire > 0) {
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.fillStyle = `rgba(255, 50, 0, ${this.ambience.fire * 0.3})`;
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.globalCompositeOperation = 'source-over';
+        }
+    }
+}
+
+window.onload = () => { new CinematicGame(); };
+</script>
+</body>
+</html>

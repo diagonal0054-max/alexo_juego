@@ -1,0 +1,436 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Alexo v4</title>
+<style>body{background:#000;margin:0;display:flex;justify-content:center;align-items:center;height:100vh}</style>
+</head><body>
+<canvas id="g" width="960" height="540"></canvas>
+<script>
+var cv = document.getElementById("g");
+var cx = cv.getContext("2d");
+var GW = 960, GH = 540;
+console.log("Canvas OK. Resolucion: "+cv.width+"x"+cv.height);
+
+var FY = 345;
+var gameState = "title";
+var ph = 0;
+var phaseTick = 0;
+var fadeAlpha = 1;
+var gameOver = false;
+var walkPhase = 0;
+var walkTimer = 0;
+var alexoX = 350;
+var ianX = 900;
+var ianVisible = false;
+var ianWalkFrame = 0;
+var showNotebook = false;
+var scanProgress = 0;
+var alexoFace = "back";
+var pt = 0;
+
+/* === DIALOGO === */
+var dlgTexts = [];
+var dlgIdx = 0;
+var dlgChar = 0;
+var dlgTimer = 0;
+var dlgReady = false;
+var dlgDone = false;
+var dlgSpeaker = "";
+var dlgActive = false;
+
+function startDialog(lines, speaker) {
+    dlgTexts = lines || [];
+    dlgIdx = 0;
+    dlgChar = 0;
+    dlgReady = true;
+    dlgDone = false;
+    dlgSpeaker = speaker || "";
+    dlgActive = true;
+    dlgTimer = performance.now();
+}
+
+function advanceDialog() {
+    if (!dlgActive) return false;
+    if (!dlgDone) {
+        dlgChar = dlgTexts[dlgIdx].length;
+        dlgDone = true;
+        return false;
+    }
+    dlgIdx++;
+    dlgChar = 0;
+    dlgDone = false;
+    dlgTimer = performance.now();
+    if (dlgIdx >= dlgTexts.length) {
+        dlgActive = false;
+        return true;
+    }
+    return false;
+}
+
+function updateDialog() {
+    if (!dlgActive || dlgDone) return;
+    if (performance.now() - dlgTimer >= 28) {
+        dlgChar++;
+        dlgTimer = performance.now();
+        if (dlgChar >= dlgTexts[dlgIdx].length) dlgDone = true;
+    }
+}
+
+function getDlgText() {
+    if (!dlgActive || dlgTexts.length === 0) return "";
+    return dlgTexts[dlgIdx].substring(0, dlgChar);
+}
+
+/* === FASES === */
+var phases = [
+    {scene:"title", act:"show_title"},
+    {scene:"salon",act:"stand", texts:["Arcadia. El barrio mas exclusivo de la ciudad."]},
+    {scene:"salon",act:"stand", texts:["El salon de fiestas se prepara para la noche de gala. Alexo trabaja en silencio."]},
+    {scene:"salon",act:"ian_enter", texts:["El mozo aparece con una bandeja. Se llama Ian. En sus ratos libres escribe cuentos."]},
+    {scene:"salon",act:"ian_speak", texts:["Alexo... crees que lo que escribo tiene sentido?"], speaker:"Ian"},
+    {scene:"salon",act:"show_notebook", texts:["Saca un cuaderno arrugado del bolsillo. Entre recetas, paginas llenas de letra a mano."]},
+    {scene:"salon",act:"ian_speak", texts:["Es un cuento sobre un robot. No sabe si siente de verdad o solo calcula que siente."], speaker:"Ian"},
+    {scene:"salon",act:"stand", texts:["Alexo procesa las palabras. No tiene una respuesta. No todavia."]},
+    {scene:"salon",act:"ian_look", texts:["Ian guarda el cuaderno. Mira por la ventana. Algo lo inquieta."]},
+    {scene:"salon",act:"ian_speak", texts:['Se escuchan sirenas. "El barrio esta convulsionado esta noche."'], speaker:"Ian"},
+    {scene:"scan",act:"scan1", texts:["Alexo se acerca a la ventana. Sus sensores escanean mas alla de la rambla."]},
+    {scene:"scan",act:"scan2", texts:["Ahi. Columna de humo negro. Torre residencial. Incendio activo."]},
+    {scene:"scan",act:"scan3", texts:["Piso once. Una senal de vida. Un nino. Solo."]},
+    {scene:"salon",act:"walk_exit", texts:["Alexo camina hacia la salida. No dice nada."]},
+    {scene:"salon",act:"ian_call", texts:['"Eh Alexo, la gala empieza en una hora..."'], speaker:"Ian"},
+    {scene:"depart",act:"walk_away", texts:["Alexo ya no esta. La puerta se cierra detras de el."]},
+    {scene:"end",act:"game_over"}
+];
+
+/* === AVANZAR FASE === */
+function nextPhase() {
+    phaseTick = 0;
+    ph++;
+    if (ph >= phases.length) ph = phases.length - 1;
+    gameState = phases[ph].scene;
+    var p = phases[ph];
+    if (p.act === "game_over") { gameOver = true; return; }
+    if (p.texts) startDialog(p.texts, p.speaker || "");
+    if (p.act === "ian_enter") { ianVisible = true; ianX = 900; }
+    if (p.act === "show_notebook") showNotebook = true;
+    if (p.act === "walk_exit") alexoX = 350;
+    if (p.act === "scan1") scanProgress = 0;
+    if (p.act === "scan2") scanProgress = 1;
+    if (p.act === "scan3") scanProgress = 2;
+}
+
+/* === CLICK === */
+window.addEventListener("click", function() {
+    if (gameOver) {
+        alert(">>> Siguiente escena: El salvataje <<<");
+        return;
+    }
+    if (gameState === "title") {
+        nextPhase();
+        return;
+    }
+    if (dlgActive) {
+        var done = advanceDialog();
+        if (done) nextPhase();
+        return;
+    }
+    nextPhase();
+});
+
+/* === ALEXO ESPALDAS === */
+function drawAlexo(x, fy, fr) {
+    var la = fr===1 ? 0.3 : fr===2 ? -0.3 : 0;
+    var arm = fr===0 ? 0 : fr===1 ? -0.2 : 0.2;
+    var bob = fr===0 ? 0 : Math.abs(la) * 1.5;
+    cx.save();
+    cx.translate(x, fy - bob);
+    cx.fillStyle = "rgba(0,0,0,0.1)";
+    cx.beginPath(); cx.ellipse(0, bob, 14, 3, 0, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = "#5A5A70"; cx.lineWidth = 5; cx.lineCap = "round";
+    cx.save(); cx.translate(-6, -22); cx.rotate(la); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,-26); cx.stroke(); cx.fillStyle="#4A4A60"; cx.fillRect(-3,-3,6,6); cx.restore();
+    cx.save(); cx.translate(6, -22); cx.rotate(-la); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,-26); cx.stroke(); cx.fillStyle="#4A4A60"; cx.fillRect(-3,-3,6,6); cx.restore();
+    cx.fillStyle="#8A8AA8"; cx.beginPath(); cx.moveTo(-13,-135); cx.lineTo(13,-135); cx.lineTo(11,-22); cx.lineTo(-11,-22); cx.closePath(); cx.fill();
+    var gp = 0.3+0.2*Math.sin(performance.now()*0.003);
+    cx.shadowColor="#00FF88"; cx.shadowBlur = 12;
+    cx.fillStyle = "rgba(0,255,136," + gp.toFixed(3) + ")";
+    cx.fillRect(-7,-120,14,16); cx.shadowBlur = 0;
+    cx.strokeStyle="#5A5A70"; cx.lineWidth = 4; cx.lineCap = "round";
+    cx.save(); cx.translate(-14,-127); cx.rotate(arm); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,20); cx.stroke(); cx.restore();
+    cx.save(); cx.translate(14,-127); cx.rotate(-arm); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,20); cx.stroke(); cx.restore();
+    cx.fillStyle = "#8A8AA8"; rr(-11,-173,22,34,4); cx.fill();
+    cx.fillStyle = "#7A7A90"; rr(-9,-169,18,16,3); cx.fill();
+    cx.fillStyle = "#7A7A90"; cx.fillRect(-14,-169,4,6); cx.fillRect(10,-169,4,6);
+    cx.strokeStyle="#7A7A90"; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.moveTo(0,-173); cx.lineTo(0,-184); cx.stroke();
+    cx.shadowColor="#00FF88"; cx.shadowBlur = 6;
+    cx.fillStyle = "#00FF88"; cx.beginPath(); cx.arc(0,-185,2,0,Math.PI*2); cx.fill(); cx.shadowBlur = 0;
+    cx.restore();
+}
+
+/* === IAN === */
+function drawIan(x, fy, fr, nb) {
+    cx.save();
+    cx.translate(x, fy);
+    var la = fr===0 ? 0 : fr===1 ? 0.3 : -0.3;
+    var bob = fr===0 ? 0 : Math.abs(la) * 1.5;
+    cx.translate(0,-bob);
+    cx.fillStyle = "rgba(0,0,0,0.08)";
+    cx.beginPath(); cx.ellipse(0, bob, 10, 3, 0, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle="#2A2A35"; cx.lineWidth = 4; cx.lineCap = "round";
+    cx.save(); cx.translate(-4,-22); cx.rotate(la); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,-20); cx.stroke(); cx.fillStyle="#1A1A25"; cx.fillRect(-3,-3,6,5); cx.restore();
+    cx.save(); cx.translate(4,-22); cx.rotate(-la); cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,-20); cx.stroke(); cx.fillStyle="#1A1A25"; cx.fillRect(-3,-3,6,5); cx.restore();
+    cx.fillStyle="#E8E8E0"; cx.beginPath();
+    cx.moveTo(-10,-46); cx.lineTo(10,-46); cx.lineTo(9,-26); cx.lineTo(-9,-26); cx.closePath(); cx.fill();
+    cx.fillStyle = "#222228"; cx.beginPath();
+    cx.moveTo(-9,-40); cx.lineTo(9,-40); cx.lineTo(9,-26); cx.lineTo(-9,-26); cx.closePath(); cx.fill();
+    cx.fillStyle="#D4A574"; cx.beginPath(); cx.arc(0,-54,7,0,Math.PI*2); cx.fill();
+    cx.fillStyle="#3A2A1A"; cx.beginPath(); cx.arc(0,-56,7,Math.PI+0.3,-0.3); cx.fill();
+    cx.fillStyle = "#D4A574";
+    cx.beginPath(); cx.arc(-3,-54,1.5,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.arc(3,-54,1.5,0,Math.PI*2); cx.fill();
+    if (nb) {
+        cx.fillStyle="#8B6914";
+        cx.save(); cx.translate(16,-38); cx.rotate(0.15); rr(-1,-1,16,20,2); cx.fill();
+        cx.fillStyle = "rgba(200,180,120,0.4)";
+        cx.font = "italic 5px sans-serif"; cx.textAlign = "center";
+        cx.fillText("...el robot", 6, 5); cx.fillText("no sabe si...", 6, 12);
+        cx.textAlign = "left"; cx.restore();
+    }
+    cx.restore();
+}
+
+/* === ESCENARIOS === */
+function drawTitle() {
+    cx.fillStyle = "#050812"; cx.fillRect(0,0,GW,GH);
+    var now = performance.now();
+    for (var i = 0; i < 30; i++) {
+        var px = (i*137+now*0.01) % GW;
+        var py = (i*97+now*0.008) % GH;
+        cx.fillStyle = "rgba(0,255,136,0.06)";
+        cx.beginPath(); cx.arc(px,py,2,0,Math.PI*2); cx.fill();
+    }
+    var tg = 0.6+0.4*Math.sin(now*0.002);
+    cx.shadowColor = "#00FF88"; cx.shadowBlur = 30*tg;
+    cx.fillStyle = "#00FF88";
+    cx.font = "bold 72px Orbitron, sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle";
+    cx.fillText("ALEXO",GW/2,GH/2-20); cx.shadowBlur = 0;
+    cx.fillStyle = "rgba(200,200,220,0.5)"; cx.font = "300 16px sans-serif";
+    cx.fillText("Una aventura de consciencia", GW/2, GH/2+20);
+    var bk = 0.3+0.7*Math.abs(Math.sin(now*0.003));
+    cx.fillStyle = "rgba(200,200,220,"+bk.toFixed(2)+")";
+    cx.font = "400 14px sans-serif"; cx.textAlign = "center";
+    cx.fillText("[ clic para avanzar ]", GW/2, GH/2+60);
+    cx.textAlign = "left"; cx.textBaseline = "top";
+}
+
+function drawSalon() {
+    var g = cx.createLinearGradient(0,0,0,GH);
+    g.addColorStop(0,"#1A0F08"); g.addColorStop(0.5,"#2A1810"); g.addColorStop(1,"#0F0A06");
+    cx.fillStyle = g; cx.fillRect(0,0,GW,GH);
+    cx.fillStyle="#2A1E14"; cx.fillRect(0,0,GW,365);
+    cx.fillStyle = "#3A2A1A"; cx.fillRect(0,0,GW,4);
+    cx.fillStyle = "#1E1510"; cx.fillRect(0,365,GW,175);
+    for (var i=0;i<4;i++){
+        cx.fillStyle = "#0A1525"; cx.fillRect(90+i*220,30,130,200);
+    }
+    var now = performance.now();
+    for (var j=0;j<3;j++){
+        var lx = 180+j*280, ly = 12;
+        cx.strokeStyle="#8B7355"; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(lx,0); cx.lineTo(lx,ly+18); cx.stroke();
+        var gl = 0.6+0.3*Math.sin(now*0.002+j);
+        cx.shadowColor="#FFD700"; cx.shadowBlur = 20*gl;
+        cx.fillStyle = "rgba(255,215,0,"+gl.toFixed(2)+")";
+        cx.beginPath(); cx.arc(lx,ly+22,6,0,Math.PI*2); cx.fill(); cx.shadowBlur = 0;
+    }
+    var tables = [200,420,640];
+    for (var k=0;k<tables.length;k++){
+        cx.fillStyle = "rgba(255,255,255,0.85)";
+        cx.beginPath(); cx.ellipse(tables[k],310,36,13,0,0,Math.PI*2); cx.fill();
+    }
+    cx.fillStyle = "#4A3A28"; cx.fillRect(20,180,55,185);
+}
+
+function drawWindow() {
+    cx.fillStyle="#05080F"; cx.fillRect(0,0,GW,GH);
+    var stars=[50,150,300,450,550,700,850];
+    var now = performance.now();
+    for (var i=0;i<stars.length;i++){
+        var a = 0.15+0.4*(0.5+0.5*Math.sin(now*0.001+stars[i]));
+        cx.fillStyle="rgba(255,255,240,"+a.toFixed(2)+")";
+        cx.beginPath(); cx.arc(stars[i],25+i*4,1,0,Math.PI*2); cx.fill();
+    }
+    var sg = cx.createLinearGradient(0,0,0,260);
+    sg.addColorStop(0,"#0B0C1E"); sg.addColorStop(0.5,"#4A2040"); sg.addColorStop(1,"#C84B31");
+    cx.fillStyle = sg; cx.fillRect(0,200,GW,60);
+    var sng = cx.createRadialGradient(GW*0.7,255,5,GW*0.7,255,60);
+    sng.addColorStop(0,"rgba(255,200,50,0.4)"); sng.addColorStop(1,"rgba(255,100,50,0)");
+    cx.fillStyle = sng; cx.beginPath(); cx.arc(GW*0.7,255,60,0,Math.PI*2); cx.fill();
+    var blds=[0,75,135,225,280,350,435,485,560,620,705,770,865];
+    var bwd=[70,55,85,50,65,80,45,70,55,80,60,90,95];
+    var bhd=[110,150,120,170,130,155,140,180,125,155,135,165,115];
+    for (var j=0;j<blds.length;j++){
+        cx.fillStyle="#0C0E18"; cx.fillRect(blds[j],260-bhd[j],bwd[j],bhd[j]);
+        for (var r=0;r<Math.floor(bhd[j]/18);r++) for(var c=0;c<Math.floor(bwd[j]/12);c++){
+            if(Math.random()>0.45){cx.fillStyle="rgba(255,200,80,0.18)";cx.fillRect(blds[j]+3+c*12,260-bhd[j]+5+r*18,4,7);}
+        }
+    }
+    var wg = cx.createLinearGradient(0,260,0,300);
+    wg.addColorStop(0,"rgba(200,75,49,0.08)"); wg.addColorStop(1,"rgba(200,75,49,0)");
+    cx.fillStyle = wg; cx.fillRect(0,260,GW,40);
+    var wg2 = cx.createLinearGradient(0,300,0,GH);
+    wg2.addColorStop(0,"#1A3A5C"); wg2.addColorStop(0.5,"#0D2137"); wg2.addColorStop(1,"#060E1A");
+    cx.fillStyle = wg2; cx.fillRect(0,300,GW,GH-300);
+    for (var w=0;w<4;w++){
+        var by = 308+w*22;
+        cx.strokeStyle="rgba(200,180,150,0.06)"; cx.lineWidth = 1; cx.beginPath();
+        for (var wx=0;wx<GW;wx+=3){
+            var wy=by+Math.sin(wx*0.015+now*0.0007+w*1.8)*(3-w*0.4);
+            if(wx===0)cx.moveTo(wx,wy);else cx.lineTo(wx,wy);
+        }
+        cx.stroke();
+    }
+    cx.strokeStyle="#8B7355"; cx.lineWidth=10; cx.strokeRect(0,0,GW,GH);
+    cx.strokeStyle="#6B5535"; cx.lineWidth=4;
+    cx.beginPath(); cx.moveTo(GW/2,0); cx.lineTo(GW/2,GH); cx.stroke();
+    cx.beginPath(); cx.moveTo(0,GH/2); cx.lineTo(GW,GH/2); cx.stroke();
+}
+
+function drawScan(prog) {
+    drawWindow();
+    cx.fillStyle = "rgba(0,255,136,0.04)"; cx.fillRect(0,0,GW,GH);
+    var now = performance.now();
+    var scanY = (now*0.15)%GH;
+    cx.strokeStyle="rgba(0,255,136,0.25)"; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0,scanY); cx.lineTo(GW,scanY); cx.stroke();
+    cx.fillStyle = "rgba(0,255,136,0.06)"; cx.fillRect(0,scanY-2,GW,4);
+    cx.strokeStyle="rgba(0,255,136,0.03)"; cx.lineWidth = 0.5;
+    for (var i=0;i<GW;i+=55){cx.beginPath();cx.moveTo(i,0);cx.lineTo(i,GH);cx.stroke();}
+    cx.fillStyle="rgba(0,255,136,0.7)"; cx.font="11px Orbitron,sans-serif"; cx.textAlign="left";
+    cx.fillText("ESCANEANDO ARCADIA...",30,30);
+    cx.fillText("RADIO: 2.4 KM",30,48);
+    if(prog>=1){
+        cx.fillStyle="rgba(255,80,0,0.8)";
+        cx.fillText("ALERTA: INCENDIO DETECTADO",30,68);
+        cx.fillStyle="rgba(255,80,0,0.4)"; cx.font="10px sans-serif";
+        cx.fillText("Torre Residencial - Sector 12",30,84);
+    }
+    if(prog>=2){
+        cx.fillStyle="rgba(255,50,50,0.8)"; cx.font="11px Orbitron,sans-serif";
+        cx.fillText("SE\u00d1AL DE VIDA",30,105);
+        cx.fillStyle="rgba(255,50,50,0.5)"; cx.font="10px sans-serif";
+        cx.fillText("Piso 11 - Patron: infantil - Unico",30,121);
+        cx.strokeStyle="rgba(255,50,50,0.5)"; cx.lineWidth = 1.5; cx.setLineDash([4,4]);
+        cx.beginPath(); cx.moveTo(180,130); cx.lineTo(GW*0.7-10,245); cx.stroke(); cx.setLineDash([]);
+        var pulse=0.5+0.5*Math.sin(now*0.006);
+        cx.fillStyle="rgba(255,50,50,"+pulse.toFixed(2)+")";
+        cx.beginPath(); cx.arc(GW*0.7,245,5+pulse*4,0,Math.PI*2); cx.fill();
+        cx.fillStyle="rgba(60,50,40,0.12)"; cx.beginPath();
+        cx.arc(GW*0.7,255,20+Math.sin(now*0.001)*5,0,Math.PI*2); cx.fill();
+    }
+    cx.textAlign="left";
+}
+
+function drawDepart() {
+    cx.fillStyle="#05080F"; cx.fillRect(0,0,GW,GH);
+    var blds2=[{x:0,w:80,h:100},{x:600,w:60,h:120},{x:665,w:85,h:95},{x:755,w:55,h:135},{x:815,w:65,h:105},{x:885,w:75,h:90}];
+    for(var i=0;i<blds2.length;i++){cx.fillStyle="#0A0C14";cx.fillRect(blds2[i].x,440-blds2[i].h,blds2[i].w,blds2[i].h);}
+    cx.fillStyle="#14161E";cx.fillRect(0,440,GW,100);
+    cx.fillStyle="#1A1C26";cx.fillRect(0,435,GW,8);
+    var th=180,ty=440-th;
+    cx.fillStyle="#1A1C28";cx.fillRect(750,ty,80,th);
+    for(var j=0;j<4;j++){cx.fillStyle="rgba(255,"+(60+j*20)+",0,0.25)";cx.fillRect(758,ty+j*15,64,8);}
+    var now=performance.now();
+    if(Math.random()<0.2){for(var k=0;k<2;k++)particles.push({x:790+(Math.random()-.5)*30,y:ty+Math.random()*5,vx:(Math.random()-.5),vy:-(Math.random()*2+1),l:1,d:0.015,sz:2+Math.random()*4});}
+}
+
+var particles=[];
+
+function updP(){
+    for(var i=particles.length-1;i>=0;i--){
+        var p=particles[i];
+        p.x+=(p.vx||0);
+        p.y+=(p.vy||0);
+        p.vy=(p.vy||0)-0.02;
+        p.l=(p.l||1)-0.015;
+        if(p.l<=0)particles.splice(i,1);
+    }
+}
+
+function drawP(){
+    for(var i=0;i<particles.length;i++){
+        var p=particles[i];
+        cx.fillStyle="rgba(255,120,20,"+(p.l*0.8).toFixed(2)+")";
+        cx.beginPath();
+        cx.arc(p.x,p.y,Math.max(0.5,(p.sz||2)),0,Math.PI*2);
+        cx.fill();
+    }
+}
+
+function rr(x,y,w,h,r){r=Math.min(r,Math.min(w,h)/2);cx.beginPath();cx.moveTo(x+r,y);cx.lineTo(x+w-r,y);cx.quadraticCurveTo(x+w,y,x+w,y+r);cx.lineTo(x+w,y+h-r);cx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);cx.lineTo(x+r,y+h);cx.quadraticCurveTo(x,y+h,x,y+h-r);cx.lineTo(x,y+r);cx.quadraticCurveTo(x,y,x+r,y);cx.closePath();}
+
+function drawDlg(){
+    if(!dlgActive)return;
+    var bx=20,by=GH-125,bw=GW-40,bh=105;
+    cx.fillStyle="rgba(5,8,18,0.88)";rr(bx,by,bw,bh,8);cx.fill();
+    cx.strokeStyle="rgba(0,255,136,0.25)";cx.lineWidth=1;rr(bx,by,bw,bh,8);cx.stroke();
+    cx.fillStyle="#00FF88";cx.globalAlpha=0.4;cx.fillRect(bx+15,by+1,40,2);cx.globalAlpha=1;
+    var txX=bx+20;
+    if(dlgSpeaker!==""){cx.fillStyle="rgba(0,255,136,0.6)";cx.font="600 13px sans-serif";cx.textBaseline="top";cx.textAlign="left";cx.fillText(dlgSpeaker+":",txX,by+12);txX+=cx.measureText(dlgSpeaker+": ").width;}
+    cx.fillStyle="#E0E0E0";cx.font="18px sans-serif";cx.textBaseline="top";cx.textAlign="left";
+    var txt=getDlgText();
+    if(txt.length>0)cx.fillText(txt,txX,by+12,bw-(txX-bx)-20);
+    if(dlgDone){
+        var ba=0.3+0.7*Math.abs(Math.sin(performance.now()*0.003));
+        cx.fillStyle="rgba(0,255,136,"+ba.toFixed(2)+")";cx.font="14px sans-serif";cx.textAlign="right";cx.fillText("\u25bc continuar",bx+bw-20,by+bh-18);cx.textAlign="left";
+    }
+    cx.textAlign="left";cx.textBaseline="top";
+}
+
+function drawEndCard(){
+    var bx=GW/2-200,by=GH/2-50,bw=400,bh=100;
+    cx.fillStyle="rgba(5,8,18,0.9)";rr(bx,by,bw,bh,10);cx.fill();
+    cx.strokeStyle="rgba(0,255,136,0.25)";cx.lineWidth=1;rr(bx,by,bw,bh,10);cx.stroke();
+    cx.fillStyle="#00FF88";cx.font="600 17px sans-serif";cx.textAlign="center";cx.textBaseline="middle";
+    cx.fillText("Alexo ya no esta.",GW/2,GH/2-15);
+    cx.fillStyle="#888";cx.font="300 12px sans-serif";
+    cx.fillText("La puerta se cierra detras de el.",GW/2,GH/2+5);
+    var bk=0.3+0.7*Math.abs(Math.sin(performance.now()*0.03));
+    cx.fillStyle="rgba(0,255,136,"+bk.toFixed(2)+")";cx.font="300 14px sans-serif";
+    cx.fillText(">>> Siguiente escena: El salvataje <<<",GW/2,GH/2+28);
+    cx.fillStyle="rgba(200,200,220,0.2)";cx.font="300 11px sans-serif";
+    cx.fillText("clic para ir al menu",GW/2,GH/2+48);
+    cx.textAlign="left";cx.textBaseline="top";
+}
+
+function drawFade(){if(fadeAlpha<=0)return;cx.fillStyle="rgba(5,8,18,"+fadeAlpha.toFixed(3)+")";cx.fillRect(0,0,GW,GH);}
+
+/* === LOOP === */
+function loop(){
+    cx.clearRect(0,0,GW,GH);
+    updP();
+    updateDialog();
+    pt++;
+    if(fadeAlpha>0){fadeAlpha-=0.015;if(fadeAlpha<0)fadeAlpha=0;}
+    if(gameState==="title"){drawTitle();drawFade();requestAnimationFrame(loop);return;}
+    if(gameState==="end"){drawDepart();drawEndCard();drawP();drawFade();requestAnimationFrame(loop);return;}
+    if(gameState==="salon"){
+        drawSalon();
+        if(ianVisible)drawIan(ianX,FY,walkPhase,showNotebook);
+        if(alexoFace==="back")drawAlexo(alexoX,FY,walkPhase);
+    }else if(gameState==="window"){
+        drawWindow();
+        if(alexoFace==="back")drawAlexo(alexoX,FY,walkPhase);
+    }else if(gameState==="scan"){
+        drawScan(scanProgress);
+        if(alexoFace==="back")drawAlexo(alexoX,FY,walkPhase);
+    }else if(gameState==="depart"){
+        drawDepart();
+        if(alexoFace==="back")drawAlexo(alexoX,FY,walkPhase);
+    }else{
+        cx.fillStyle="#222";cx.fillRect(0,0,GW,GH);
+        cx.fillStyle="red";cx.font="bold 20px sans-serif";cx.textAlign="left";cx.textBaseline="top";
+        cx.fillText("Fase desconocida: "+gameState,20,20);
+    }
+    drawP();drawDlg();drawFade();
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script></body></html>

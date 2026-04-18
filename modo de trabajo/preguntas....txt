@@ -1,0 +1,17 @@
+FASE 4: Testing antes de avanzar
+Después de cada cambio, prueba esta checklist mínima:
+
+ ¿El juego inicia?
+ ¿Puedo moverme?
+ ¿Los diálogos aparecen?
+ ¿La escena cambia correctamente?
+ ¿El cambio nuevo funciona?
+Si alguno falla → git reset y reformulas el prompt.
+
+🚨 Diagnóstico de tu situación actual
+Por lo que cuentas, sospecho que estás en Capa 4 (imágenes) pero quizás las Capas 1 y 2 no están consolidadas. Por eso el agente "rompe cosas": el código probablemente tiene dependencias mezcladas (la imagen está acoplada a la lógica).
+
+Mi pregunta clave para ti:
+¿Estás usando Git?
+¿Tu código tiene los archivos separados por responsabilidad (ej: personaje.js, escena.js, dialogos.js) o está todo en un solo archivo gigante?
+¿Qué agente estás usando? (Cursor, Claude, Copilot, ChatGPT...)

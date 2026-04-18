@@ -1,0 +1,15 @@
+CONTEXTO: [Pega resumen de GAME_DESIGN.md]
+
+ESTADO ACTUAL: Estoy trabajando en [archivo específico].
+
+NO TOQUES: 
+- El sistema de colisiones (funciona)
+- Los diálogos del mozo (funcionan)
+- La función X en el archivo Y
+
+OBJETIVO ESPECÍFICO: Quiero mejorar SOLAMENTE 
+el sprite del robot en la escena 1.
+
+RESTRICCIÓN: No modifiques otros archivos que no sean 
+[lista de archivos]. Si necesitas modificar otro, 
+pídeme permiso primero.

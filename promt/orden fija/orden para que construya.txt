@@ -1,0 +1,87 @@
+IMPORTANTE: NO reescribas ni simplifiques escenas completas. NO rehagas bloques enteros. NO elimines partes valiosas del código. Trabajá con cambios quirúrgicos y locales. Todo lo que ya funciona bien debe quedar bloqueado y sin modificaciones.
+
+REGLA PRINCIPAL:
+Antes de tocar algo, identificá exactamente qué se te pide corregir. Modificá solo eso. No alteres diálogos, movimientos, timing, composición, objetos, transiciones ni elementos visuales que no fueron pedidos. Cada arreglo debe preservar todo lo bueno ya logrado.
+
+BLOQUEAR Y CONSERVAR:
+
+* Mantener el movimiento de Ian, que ahora está mejor.
+* Mantener cualquier parte ya corregida donde Ian deja el manuscrito, si existía bien resuelta.
+* Mantener la estructura general de la escena y el código existente.
+* No quitar piezas del código base.
+* No “limpiar”, “optimizar” ni “refactorizar” fuera de lo pedido.
+
+CORRECCIONES PUNTUALES OBLIGATORIAS:
+
+1. IAN
+
+* Ian sigue flotando: corregir apoyo al suelo.
+* Debe tener pies visibles y calzado visible.
+* Debe quedar claro que camina sobre el piso, no suspendido.
+* Ian sigue sin manos: agregar manos visibles y anatómicamente coherentes.
+* Corregir el diálogo “me voy al sistema”: eliminar esa frase y reemplazarla por una despedida con sentido dentro de la historia.
+* Ian no debe irse llevándose el manuscrito si ya debía dejarlo. Restaurar esa acción correctamente: Ian muestra el manuscrito y luego lo deja donde corresponde.
+* No tocar nada más de Ian fuera de estas correcciones.
+
+2. DESPEDIDA EN EL SALÓN
+
+* Falta la despedida de Alexo a Ian antes de salir del salón de fiestas.
+* Incorporar una despedida clara, breve y natural.
+* Esa despedida debe cerrar correctamente la escena antes de la salida de Alexo.
+* No alterar el resto del salón ni su composición.
+
+3. MOVIMIENTO DE ALEXO
+
+* Alexo no debe moverse de costado de forma artificial.
+* Debe salir del salón e ir hacia la zona siniestrada con más naturalidad.
+* Corregir trayectoria, orientación corporal y desplazamiento.
+* No modificar su diseño ni otras animaciones que ya estén bien.
+
+4. ESCENA DE RESCATE — RESTAURAR BLOQUE
+
+* El bloque actual del rescate está mal y debe ser restaurado.
+* Corregir específicamente la dirección de movimiento:
+
+  * Los rescatistas deben venir subiendo la escalera.
+  * Alexo debe venir bajando con el niño.
+* No rehacer toda la escena desde cero: restaurar la lógica espacial correcta y conservar todo lo útil que ya exista.
+* El error principal era de dirección y puesta en escena; corregí eso sin destruir lo demás.
+
+5. RESCATISTAS
+
+* Los rescatistas no deben venir de costado.
+* Deben entrar y moverse con dirección coherente respecto de la escalera y la escena.
+* La expresión de asombro debe estar en todo el equipo, no en un solo rescatista.
+* Debe notarse reacción grupal ante la llegada de Alexo con el niño.
+
+6. ENTREGA DEL NIÑO
+
+* La entrega del niño sigue floja: mejorarla.
+* La acción debe verse más sólida, clara y emocionalmente creíble.
+* Incorporar asistencia del grupo de rescatistas al niño.
+* No debe parecer que Alexo entrega al niño y el grupo no hace nada.
+* Debe haber recepción, contención y ayuda visible del equipo.
+
+7. IAN EN ESCENA DE RESCATE
+
+* Ian no debe estar en esa escena.
+* Quitar a Ian completamente de la escena del rescate.
+* Verificar que no quede ni visual ni narrativamente en ese bloque.
+
+MÉTODO DE TRABAJO OBLIGATORIO:
+
+* Hacé una lista interna de cambios puntuales.
+* Ejecutá solo esos cambios.
+* Revisá que cada corrección no rompa otra parte.
+* Si un cambio afecta algo previamente resuelto, deshacelo y buscá una corrección más localizada.
+* No empeores lo que ya está bien.
+* No reemplaces escenas completas por versiones nuevas más pobres.
+
+ENTREGABLE:
+Quiero una nueva versión donde:
+
+* se mantenga intacto todo lo bueno,
+* solo se corrijan estos puntos,
+* y no desaparezcan ni se degraden elementos ya logrados.
+
+En resumen: NO rehacer, NO simplificar, NO borrar valor existente. SOLO corregir de forma quirúrgica los errores señalados.

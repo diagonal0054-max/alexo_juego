@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alexo: El Rescate - Cinematic Cut</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Condensed:wght@300;400;700&display=swap');
+
+        :root {
+            --primary: #00FF88;
+            --danger: #FF4400;
+            --ui-bg: rgba(0, 0, 0, 0.85);
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Roboto Condensed', sans-serif;
+            overflow: hidden;
+            color: var(--text-main);
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px;
+            height: 540px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+            background: #050505;
+            overflow: hidden;
+            cursor: pointer;
+            /* Aspeto de Cine */
+            border-top: 40px solid #000;
+            border-bottom: 40px solid #000;
+            box-sizing: content-box; 
+        }
+
+        /* Canvas Escalable */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 40px;
+        }
+
+        /* Subtítulos Cinemáticos */
+        #subtitle-box {
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            width: 100%;
+            min-height: 80px;
+            display: none;
+            text-align: center;
+            padding-top: 20px;
+            pointer-events: none;
+        }
+
+        #subtitle-text {
+            font-family: 'Roboto Condensed', sans-serif;
+            font-size: 22px;
+            color: #FFF;
+            text-shadow: 0 2px 4px #000;
+            letter-spacing: 0.5px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Indicador de Interacción */
+        #prompt-indicator {
+            position: absolute;
+            bottom: 60px;
+            right: 40px;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            animation: pulse 2s infinite;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Pantalla de Inicio */
+        #title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 60px;
+            color: var(--primary);
+            text-shadow: 0 0 30px var(--primary);
+            margin: 0;
+            letter-spacing: 5px;
+        }
+
+        .btn-start {
+            margin-top: 40px;
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-start:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        
+        /* Efecto de grano de película */
+        .film-grain {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 50; opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="g" width="960" height="540"></canvas>
+        <div class="film-grain"></div>
+
+        <div id="title-screen">
+            <h1>ALEXO</h1>
+            <p style="color: #888; margin-top: 10px;">PROTOCOLO: RESCATE</p>
+            <button class="btn-start" id="start-btn">INICIAR SECUENCIA</button>
+        </div>
+
+        <div id="ui-layer">
+            <div id="subtitle-box">
+                <div id="subtitle-text"></div>
+            </div>
+            <div id="prompt-indicator">▼ AVANZAR</div>
+        </div>
+    </div>
+
+<script>
+/**
+ * ALEXO: CINEMATIC ENGINE
+ * Focused on atmosphere, camera movement, and pacing.
+ */
+class CinematicGame {
+    constructor() {
+        this.canvas = document.getElementById('g');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+
+        // Camera System
+        this.camera = { x: 0, y: 0, targetX: 0, targetY: 0, shake: 0 };
+
+        // UI
+        this.uiTitle = document.getElementById('title-screen');
+        this.uiSubBox = document.getElementById('subtitle-box');
+        this.uiSubText = document.getElementById('subtitle-text');
+        this.uiPrompt = document.getElementById('prompt-indicator');
+
+        // State
+        this.state = 'TITLE'; // TITLE, PLAYING, END
+        this.stepIndex = 0;
+        this.waitingForInput = false;
+        
+        // Entities
+        this.alexo = { x: 480, y: 350, state: 'IDLE', facing: 1, frame: 0 };
+        this.kid = { x: 0, y: 0, visible: false, state: 'HIDING' }; // 0,0 init
+        this.ian = { x: 700, y: 350, visible: false };
+
+        // Environment
+        this.ambience = { fire: 0, smoke: 0, darkness: 0 };
+        this.particles = [];
+        this.time = 0;
+
+        // Script (The Director)
+        this.script = this.getDirectorScript();
+
+        // Init
+        document.getElementById('start-btn').addEventListener('click', () => this.start());
+        document.getElementById('game-container').addEventListener('click', () => this.handleInput());
+        
+        this.loop = this.loop.bind(this);
+    }
+
+    start() {
+        this.uiTitle.style.display = 'none';
+        this.state = 'PLAYING';
+        this.runStep();
+        requestAnimationFrame(this.loop);
+    }
+
+    // === THE DIRECTOR'S SCRIPT ===
+    getDirectorScript() {
+        return [
+            // BEAT 1: THE SALON - CALM
+            { 
+                type: 'SCENE', 
+                bg: 'SALON', 
+                cam: { x: 480, y: 300, zoom: 1 }, 
+                action: () => { 
+                    this.alexo.x = 400; this.alexo.y = 380; 
+                    this.ian.visible = true; this.ian.x = 600; 
+                } 
+            },
+            { type: 'DIALOG', text: "Arcadia. La noche de gala está a punto de comenzar.", speaker: "" },
+            { type: 'DIALOG', text: "Ian termina de ajustar los manteles. Alexo observa la sala en silencio.", speaker: "" },
+            { type: 'DIALOG', text: "¿Crees que alguien notará si pongo un poquito menos de caviar?", speaker: "Ian" },
+            
+            // BEAT 2: THE ANOMALY
+            { type: 'FOCUS', target: 'WINDOW', duration: 60 },
+            { type: 'DIALOG', text: "Alexo no responde. Sus sensores captan una variación térmica en la zona sur.", speaker: "" },
+            { type: 'DIALOG', text: "Alexo, ¿me escuchas?", speaker: "Ian" },
+            
+            // BEAT 3: THE REVEAL (WINDOW)
+            { type: 'SCENE', bg: 'WINDOW_VIEW', cam: { x: 480, y: 300 }, action: () => { this.ian.visible = false; this.alexo.visible = false; } },
+            { type: 'CAMERA_MOVE', x: 700, y: 250, speed: 0.02 }, // Zoom/Pan to tower
+            { type: 'WAIT', frames: 120 }, // Pause to look
+            { type: 'EFFECT', name: 'ALERT' },
+            { type: 'DIALOG', text: "Torre Residencial Omega. Incendio confirmado. Piso 11.", speaker: "ALEXO (SYSTEM)" },
+            { type: 'DIALOG', text: "Señal de vida detectada. Patrón biológico: Infantil.", speaker: "ALEXO (SYSTEM)" },
+            
+            // BEAT 4: THE DECISION
+            { type: 'SCENE', bg: 'SALON', cam: { x: 400, y: 350 }, action: () => { this.alexo.visible = true; this.ian.visible = true; this.alexo.x = 400; } },
+            { type: 'DIALOG', text: "¿Adónde vas? ¡La gala empieza en minutos!", speaker: "Ian" },
+            { type: 'MOVE', actor: 'ALEXO', x: -100, speed: 4 }, // Walk out
+            { type: 'DIALOG', text: "¡Alexo!", speaker: "Ian" },
+            
+            // BEAT 5: THE RUN (STREET)
+            { type: 'SCENE', bg: 'STREET_RUN', cam: { x: 0, y: 300 }, action: () => { this.alexo.x = 100; this.alexo.state = 'RUN'; } },
+            { type: 'CAMERA_MOVE', x: 2000, y: 300, speed: 0.008 }, // Long tracking shot
+            { type: 'DIALOG', text: "Calculando ruta óptima... Evitando tráfico.", speaker: "ALEXO (SYSTEM)" },
+            { type: 'WAIT', frames: 180 }, // Let him run for a bit
+            
+            // BEAT 6: ENTRANCE
+            { type: 'SCENE', bg: 'HALLWAY_DARK', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 480; this.alexo.y = 400; this.alexo.state = 'WALK'; this.ambience.darkness = 0.9; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 150, speed: 2 }, // Move 'up' (3D perspective)
+            { type: 'CAMERA_MOVE', x: 480, y: 150, speed: 0.05 },
+            { type: 'DIALOG', text: "Estructura comprometida. Niveles de monóxido de carbono críticos.", speaker: "ALEXO (SYSTEM)" },
+            
+            // BEAT 7: THE APARTMENT
+            { type: 'SCENE', bg: 'APARTMENT_FIRE', cam: { x: 480, y: 270 }, action: () => { 
+                this.alexo.x = 300; this.alexo.y = 350; 
+                this.kid.visible = true; this.kid.x = 700; this.kid.y = 380; 
+                this.ambience.fire = 1; 
+            }},
+            { type: 'DIALOG', text: "¡Hay alguien ahí!", speaker: "" },
+            { type: 'MOVE', actor: 'ALEXO', x: 650, speed: 5 }, // Run to kid
+            { type: 'MOVE', actor: 'KID', x: 620, speed: 2 }, // Kid recoils slightly
+            { type: 'ANIMATION', actor: 'KID', anim: 'CRY' },
+            { type: 'DIALOG', text: "Tengo miedo... tengo miedo...", speaker: "NIÑO" },
+            { type: 'DIALOG', text: "No te preocupes. Estoy aquí para sacarte.", speaker: "ALEXO" },
+            { type: 'ANIMATION', actor: 'BOTH', anim: 'HUG' },
+            { type: 'WAIT', frames: 100 },
+            
+            // BEAT 8: ESCAPE
+            { type: 'DIALOG', text: "Agárrate fuerte a mi espalda.", speaker: "ALEXO" },
+            { type: 'SCENE', bg: 'STAIRS_DOWN', cam: { x: 480, y: 400 }, action: () => { this.alexo.state = 'CARRY'; this.alexo.x = 480; this.alexo.y = 400; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 100, speed: 3 }, // Go down
+            { type: 'CAMERA_MOVE', x: 480, y: 100, speed: 0.04 },
+            { type: 'EFFECT', name: 'SHAKE' },
+            
+            // BEAT 9: RESCUE TEAM
+            { type: 'SCENE', bg: 'HALLWAY_LIGHT', cam: { x: 480, y: 270 }, action: () => { this.alexo.y = 270; this.ambience.fire = 0; this.ambience.darkness = 0.3; } },
+            { type: 'SPAWN', type: 'FIREFIGHTER', x: 800 },
+            { type: 'MOVE', actor: 'FIREFIGHTER', x: 600, speed: 3 },
+            { type: 'DIALOG', text: "¡Aquí! ¡Por aquí!", speaker: "RESCATISTA" },
+            { type: 'ANIMATION', actor: 'HANDOFF' },
+            { type: 'DIALOG', text: "Está bien. Está respirando.", speaker: "RESCATISTA" },
+            { type: 'DIALOG', text: "Gracias...", speaker: "NIÑO" },
+            
+            // BEAT 10: DEPARTURE
+            { type: 'MOVE', actor: 'ALEXO', x: -100, speed: 2 }, // Back away
+            { type: 'DIALOG', text: "Mis sensores indican otra anomalía en el sector norte.", speaker: "ALEXO (SYSTEM)" },
+            { type: 'SCENE', bg: 'EXIT_DOOR', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 480; this.alexo.y = 270; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 350, speed: 1.5 }, // Walk to door
+            { type: 'WAIT', frames: 60 },
+            { type: 'FADE_TO_BLACK' },
+            { type: 'DIALOG', text: "Alexo desaparece en la niebla de la noche.", speaker: "" },
+            { type: 'END' }
+        ];
+    }
+
+    runStep() {
+        if (this.stepIndex >= this.script.length) return;
+        
+        const step = this.script[this.stepIndex];
+        console.log("Step:", step.type);
+
+        this.uiPrompt.style.opacity = '0';
+        this.uiSubBox.style.display = 'none';
+
+        switch(step.type) {
+            case 'SCENE':
+                this.scene = step.bg;
+                this.camera.targetX = step.cam.x;
+                this.camera.targetY = step.cam.y;
+                if (step.action) step.action();
+                this.nextStep(); // Immediate for scene changes
+                break;
+            
+            case 'FOCUS':
+                // Subtle camera move
+                if (step.target === 'WINDOW') {
+                    this.camera.targetX = 800; // Look right
+                }
+                setTimeout(() => this.nextStep(), 1500);
+                break;
+
+            case 'CAMERA_MOVE':
+                this.camera.targetX = step.x;
+                this.camera.targetY = step.y;
+                this.nextStep();
+                break;
+
+            case 'DIALOG':
+                this.uiSubBox.style.display = 'block';
+                this.uiSubText.style.opacity = '0';
+                this.uiSubText.innerText = (step.speaker ? step.speaker + ": " : "") + step.text;
+                
+                // Fade in text
+                setTimeout(() => this.uiSubText.style.opacity = '1', 100);
+                
+                this.waitingForInput = true;
+                this.uiPrompt.style.opacity = '1';
+                break;
+
+            case 'MOVE':
+                this.handleMovement(step);
+                break;
+
+            case 'WAIT':
+                setTimeout(() => this.nextStep(), (step.frames / 60) * 1000);
+                break;
+
+            case 'EFFECT':
+                if (step.name === 'ALERT') this.triggerAlert();
+                if (step.name === 'SHAKE') this.camera.shake = 20;
+                this.nextStep();
+                break;
+
+            case 'ANIMATION':
+                // Placeholder for specific interaction logic
+                if (step.anim === 'HUG') {
+                    this.alexo.state = 'IDLE';
+                    this.kid.x = this.alexo.x; // Snap together
+                }
+                this.nextStep();
+                break;
+            
+            case 'SPAWN':
+                if (step.type === 'FIREFIGHTER') {
+                    // Simple visual logic could be expanded here
+                }
+                this.nextStep();
+                break;
+
+            case 'FADE_TO_BLACK':
+                this.ambience.darkness = 1;
+                setTimeout(() => this.nextStep(), 2000);
+                break;
+
+            case 'END':
+                this.state = 'END';
+                this.uiSubText.innerText = "FIN DE LA TRANSMISIÓN";
+                this.uiSubBox.style.display = 'block';
+                this.uiSubText.style.opacity = '1';
+                break;
+        }
+    }
+
+    handleMovement(step) {
+        // Simple interpolation handler
+        const actor = step.actor === 'ALEXO' ? this.alexo : (step.actor === 'KID' ? this.kid : this.ian);
+        const target = step.x; // Simplified for this demo (mostly X axis movement)
+        
+        const animateMove = () => {
+            const dx = target - actor.x;
+            if (Math.abs(dx) < step.speed) {
+                actor.x = target;
+                this.nextStep();
+            } else {
+                actor.x += Math.sign(dx) * step.speed;
+                requestAnimationFrame(animateMove);
+            }
+        };
+        animateMove();
+    }
+
+    handleInput() {
+        if (this.state === 'END') {
+            location.reload();
+            return;
+        }
+        if (this.waitingForInput) {
+            this.waitingForInput = false;
+            this.stepIndex++;
+            this.runStep();
+        }
+    }
+
+    nextStep() {
+        this.stepIndex++;
+        this.runStep();
+    }
+
+    triggerAlert() {
+        // Visual pop effect
+        const alertDiv = document.createElement('div');
+        alertDiv.style.position = 'absolute';
+        alertDiv.style.top = '20%'; alertDiv.style.left = '50%';
+        alertDiv.style.transform = 'translate(-50%, -50%)';
+        alertDiv.style.color = 'red';
+        alertDiv.style.fontFamily = 'Orbitron';
+        alertDiv.style.fontSize = '40px';
+        alertDiv.style.border = '2px solid red';
+        alertDiv.style.padding = '10px 20px';
+        alertDiv.innerText = "PELIGRO";
+        document.getElementById('game-container').appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 1000);
+    }
+
+    // === MAIN LOOP ===
+    loop() {
+        this.time++;
+        this.update();
+        this.draw();
+        if(this.state !== 'STOPPED') requestAnimationFrame(this.loop);
+    }
+
+    update() {
+        // Camera Smoothing (Lerp)
+        this.camera.x += (this.camera.targetX - this.camera.x) * 0.05;
+        this.camera.y += (this.camera.targetY - this.camera.y) * 0.05;
+
+        // Shake decay
+        if (this.camera.shake > 0) this.camera.shake *= 0.9;
+
+        // Update Entities
+        this.alexo.frame = Math.sin(this.time * 0.2) * 0.5;
+        
+        // Particle System Update
+        if (this.ambience.fire > 0 && Math.random() > 0.5) {
+            this.particles.push({
+                x: Math.random() * this.width,
+                y: this.height + 20,
+                vx: (Math.random() - 0.5) * 2,
+                vy: -Math.random() * 3 - 1,
+                life: 1.0,
+                type: 'FIRE'
+            });
+        }
+        
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    draw() {
+        // Clear
+        this.ctx.fillStyle = "#050505";
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        this.ctx.save();
+        
+        // Apply Camera Transform
+        const shakeX = (Math.random() - 0.5) * this.camera.shake;
+        const shakeY = (Math.random() - 0.5) * this.camera.shake;
+        // Center camera logic: Translate world so camera.x is at screen center
+        this.ctx.translate(this.width/2 - this.camera.x + shakeX, this.height/2 - this.camera.y + shakeY);
+
+        // --- DRAW SCENES ---
+        
+        if (this.scene === 'SALON') this.drawSalon();
+        else if (this.scene === 'WINDOW_VIEW') this.drawCityView();
+        else if (this.scene === 'STREET_RUN') this.drawStreetRun();
+        else if (this.scene === 'HALLWAY_DARK') this.drawHallway(true);
+        else if (this.scene === 'APARTMENT_FIRE') this.drawApartment();
+        else if (this.scene === 'STAIRS_DOWN') this.drawStairs();
+        else if (this.scene === 'HALLWAY_LIGHT') this.drawHallway(false);
+        else if (this.scene === 'EXIT_DOOR') this.drawExitDoor();
+
+        // --- DRAW CHARACTERS ---
+        if (this.alexo.visible !== false) this.drawAlexo(this.alexo.x, this.alexo.y, this.alexo.state);
+        if (this.ian.visible) this.drawIan(this.ian.x, this.ian.y);
+        if (this.kid.visible) this.drawKid(this.kid.x, this.kid.y, this.kid.state);
+
+        this.ctx.restore();
+
+        // --- POST PROCESSING (OVERLAYS) ---
+        this.drawLighting();
+    }
+
+    // === SCENE ART ===
+
+    drawSalon() {
+        // Floor
+        this.ctx.fillStyle = "#1a1510";
+        this.ctx.fillRect(-1000, 300, 3000, 500);
+        
+        // Background Wall
+        this.ctx.fillStyle = "#2a2015";
+        this.ctx.fillRect(-1000, -1000, 3000, 600);
+
+        // Windows (Night)
+        for(let i=-2; i<4; i++) {
+            this.ctx.fillStyle = "#050510";
+            this.ctx.fillRect(i*250 - 50, 50, 150, 200);
+        }
+
+        // Chandeliers
+        this.ctx.fillStyle = "#FFD700";
+        for(let i=0; i<3; i++) {
+            this.ctx.globalAlpha = 0.3 + Math.sin(this.time * 0.05 + i)*0.1;
+            this.ctx.beginPath();
+            this.ctx.arc(i*300 + 150, 50, 30, 0, Math.PI*2);
+            this.ctx.fill();
+        }
+        this.ctx.globalAlpha = 1;
+    }
+
+    drawCityView() {
+        // Sky
+        const grad = this.ctx.createLinearGradient(0, -500, 0, 500);
+        grad.addColorStop(0, "#020205");
+        grad.addColorStop(1, "#1a0505"); // Red tint from fire
+        this.ctx.fillStyle = grad;
+        this.ctx.fillRect(-1000, -1000, 3000, 2000);
+
+        // Buildings Silhouettes
+        this.ctx.fillStyle = "#080808";
+        for(let i=0; i<20; i++) {
+            let h = 200 + Math.random() * 300;
+            this.ctx.fillRect(i * 150 - 500, 300 - h, 120, h + 500);
+        }
+
+        // THE FIRE TOWER (Target)
+        this.ctx.fillStyle = "#220505";
+        this.ctx.fillRect(600, -100, 150, 800); // The tower base
+        
+        // Fire Glow
+        this.ctx.shadowBlur = 50;
+        this.ctx.shadowColor = "orange";
+        this.ctx.fillStyle = "rgba(255, 100, 0, 0.5)";
+        this.ctx.beginPath();
+        this.ctx.arc(675, 150, 80, 0, Math.PI*2); // Fire location
+        this.ctx.fill();
+        this.ctx.shadowBlur = 0;
+    }
+
+    drawStreetRun() {
+        // Perspective Street
+        this.ctx.fillStyle = "#111";
+        this.ctx.beginPath();
+        this.ctx.moveTo(-1000, 500);
+        this.ctx.lineTo(10000, 500); // Horizon far away
+        this.ctx.lineTo(10000, 800);
+        this.ctx.lineTo(-1000, 800);
+        this.ctx.fill();
+
+        // Passing Buildings (Parallax handled by camera move, here just draw relative)
+        // Since camera moves to 2000, we need a repeating pattern or just draw wide
+        this.ctx.fillStyle = "#050505";
+        for(let i = -10; i < 50; i++) {
+            this.ctx.fillRect(i * 300, 300, 200, 500);
+            // Windows
+            this.ctx.fillStyle = (i % 2 === 0) ? "#111" : "#080808";
+            this.ctx.fillRect(i * 300 + 20, 350, 160, 400);
+            this.ctx.fillStyle = "#050505";
+        }
+
+        // Fire glow in distance (fixed world pos)
+        const fireWorldX = 2000;
+        this.ctx.shadowBlur = 100;
+        this.ctx.shadowColor = "red";
+        this.ctx.fillStyle = "rgba(255, 50, 0, 0.2)";
+        this.ctx.fillRect(fireWorldX - 200, 0, 400, 600);
+        this.ctx.shadowBlur = 0;
+    }
+
+    drawHallway(isDark) {
+        this.ctx.fillStyle = "#0a0a0a";
+        this.ctx.fillRect(-500, -200, 2000, 800);
+        
+        // Walls
+        this.ctx.fillStyle = "#151515";
+        this.ctx.fillRect(-500, -200, 2000, 200); // Ceiling
+        this.ctx.fillRect(-500, 400, 2000, 200); // Floor
+
+        // Depth lines
+        this.ctx.strokeStyle = "#333";
+        this.ctx.beginPath();
+        this.ctx.moveTo(-400, 400); this.ctx.lineTo(400, 100);
+        this.ctx.moveTo(1400, 400); this.ctx.lineTo(600, 100);
+        this.ctx.stroke();
+
+        if (isDark) {
+            // Emergency light red
+            this.ctx.shadowBlur = 80;
+            this.ctx.shadowColor = "red";
+            this.ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+            this.ctx.beginPath();
+            this.ctx.arc(480, 100, 50, 0, Math.PI*2); // Light at end of hall
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+        }
+    }
+
+    drawApartment() {
+        // Room Box
+        this.ctx.fillStyle = "#2a1005"; // Dark walls lit by fire
+        this.ctx.fillRect(0, 0, 960, 540);
+        
+        // Window with Fire
+        this.ctx.shadowBlur = 60;
+        this.ctx.shadowColor = "orange";
+        this.ctx.fillStyle = "#ff4400";
+        this.ctx.fillRect(600, 50, 200, 200);
+        this.ctx.shadowBlur = 0;
+
+        // Furniture Silhouettes
+        this.ctx.fillStyle = "#1a0a00";
+        this.ctx.fillRect(100, 350, 150, 80); // Couch
+        this.ctx.fillRect(50, 100, 50, 150); // Shelf
+
+        // Smoke overlay inside room
+        this.ctx.fillStyle = "rgba(0,0,0,0.5)";
+        this.ctx.fillRect(0, 0, 960, 540);
+    }
+
+    drawStairs() {
+        // Vertical strips to simulate stairs going down
+        this.ctx.fillStyle = "#111";
+        this.ctx.fillRect(0, 0, 960, 540);
+        
+        this.ctx.strokeStyle = "#222";
+        this.ctx.lineWidth = 4;
+        for(let i=0; i<10; i++) {
+            let y = 50 + i * 50;
+            this.ctx.beginPath();
+            this.ctx.moveTo(300, y); this.ctx.lineTo(660, y);
+            this.ctx.stroke();
+        }
+        // Railings
+        this.ctx.strokeStyle = "#444";
+        this.ctx.beginPath();
+        this.ctx.moveTo(310, 50); this.ctx.lineTo(310, 550);
+        this.ctx.moveTo(650, 50); this.ctx.lineTo(650, 550);
+        this.ctx.stroke();
+    }
+
+    drawExitDoor() {
+        this.ctx.fillStyle = "#080808";
+        this.ctx.fillRect(0, 0, 960, 540);
+        
+        // The Door
+        this.ctx.fillStyle = "#222";
+        this.ctx.fillRect(400, 150, 160, 300);
+        this.ctx.strokeStyle = "#444";
+        this.ctx.strokeRect(400, 150, 160, 300);
+        
+        // Light from outside (greenish cyberpunk street)
+        this.ctx.shadowBlur = 50;
+        this.ctx.shadowColor = "#00FF88";
+        this.ctx.fillStyle = "rgba(0, 255, 136, 0.1)";
+        this.ctx.fillRect(410, 160, 140, 280);
+        this.ctx.shadowBlur = 0;
+    }
+
+    // === CHARACTER RENDERING ===
+
+    drawAlexo(x, y, state) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(x, y);
+        
+        // Run tilt
+        if (state === 'RUN') ctx.rotate(0.2);
+        
+        // Bob
+        const bob = Math.sin(this.time * 0.2) * 5;
+        
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.beginPath(); ctx.ellipse(0, 40, 30, 10, 0, 0, Math.PI*2); ctx.fill();
+
+        // Body (Robot)
+        ctx.fillStyle = "#555";
+        ctx.fillRect(-20, -60 + bob, 40, 100);
+        
+        // Head
+        ctx.fillStyle = "#777";
+        ctx.fillRect(-15, -110 + bob, 30, 40);
+        
+        // Glowing Eye
+        ctx.shadowColor = "#00FF88";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = "#00FF88";
+        ctx.fillRect(-10, -100 + bob, 20, 5);
+        ctx.shadowBlur = 0;
+
+        // Legs
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 8;
+        const legSwing = Math.sin(this.time * 0.3) * 20;
+        if (state !== 'IDLE') {
+            ctx.beginPath(); ctx.moveTo(-10, 40 + bob); ctx.lineTo(-10 - legSwing, 70 + bob); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10, 40 + bob); ctx.lineTo(10 + legSwing, 70 + bob); ctx.stroke();
+        } else {
+            ctx.beginPath(); ctx.moveTo(-10, 40 + bob); ctx.lineTo(-10, 70 + bob); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10, 40 + bob); ctx.lineTo(10, 70 + bob); ctx.stroke();
+        }
+
+        // Kid on back (if carrying)
+        if (state === 'CARRY') {
+            ctx.fillStyle = "#AAA";
+            ctx.beginPath(); ctx.arc(0, -80 + bob, 15, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#F00"; // Kid's clothes
+            ctx.fillRect(-15, -65 + bob, 30, 25);
+        }
+
+        ctx.restore();
+    }
+
+    drawIan(x, y) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        
+        const bob = Math.sin(this.time * 0.15) * 3;
+        
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(0, 5, 20, 8, 0, 0, Math.PI*2); ctx.fill();
+
+        // Body (Waiter suit)
+        ctx.fillStyle = "#111";
+        ctx.fillRect(-15, -50 + bob, 30, 50);
+        
+        // Head
+        ctx.fillStyle = "#dcb";
+        ctx.beginPath(); ctx.arc(0, -70 + bob, 15, 0, Math.PI*2); ctx.fill();
+        
+        // Tray
+        ctx.fillStyle = "#AAA";
+        ctx.beginPath(); ctx.arc(20, -30 + bob, 20, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#FFF";
+        ctx.beginPath(); ctx.arc(20, -35 + bob, 5, 0, Math.PI*2); ctx.fill(); // Glass
+
+        ctx.restore();
+    }
+
+    drawKid(x, y, state) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        
+        const shake = state === 'CRY' ? (Math.random()-0.5)*2 : 0;
+
+        // Small shadow
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(0, 10, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+
+        // Body
+        ctx.fillStyle = "#F55"; // Red pajamas
+        ctx.fillRect(-10 + shake, -30, 20, 30);
+        
+        // Head
+        ctx.fillStyle = "#dcb";
+        ctx.beginPath(); ctx.arc(0 + shake, -45, 10, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
+    }
+
+    // === LIGHTING & FX ===
+
+    drawLighting() {
+        const ctx = this.ctx;
+        
+        // 1. Base Darkness (Vignette)
+        const grad = ctx.createRadialGradient(480, 270, 100, 480, 270, 600);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(1, "rgba(0,0,0,0.8)"); // Vignette
+        
+        // 2. Scene Specific Darkness
+        let darkness = this.ambience.darkness;
+        if (this.scene === 'APARTMENT_FIRE') darkness = 0.4;
+        if (this.scene === 'HALLWAY_DARK') darkness = 0.8;
+
+        ctx.fillStyle = `rgba(0,0,0,${darkness})`;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        // 3. Particles (Fire/Smoke)
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            if (p.type === 'FIRE') {
+                ctx.fillStyle = `rgba(255, ${Math.random()*100 + 50}, 0, ${p.life})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 5 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        });
+
+        // 4. Scanlines / Film grain (Overlay via CSS, but let's add some color grading here)
+        if (this.ambience.fire > 0) {
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.fillStyle = `rgba(255, 50, 0, ${this.ambience.fire * 0.3})`;
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.globalCompositeOperation = 'source-over';
+        }
+    }
+}
+
+// Start
+window.onload = () => {
+    new CinematicGame();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "id": "nivel_3",
+  "background": "bg_cementerio",
+  "entities": [
+    { "type": "Player", "x": 100, "y": 400 },
+    { "type": "Ghost", "x": 500, "y": 400, "sprite": "ghost_v2" }
+  ]
+}

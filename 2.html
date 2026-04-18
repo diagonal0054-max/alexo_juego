@@ -1,0 +1,226 @@
+<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><title>Alexo 1</title>
+<style>body{background:#000;margin:0;display:flex;justify-content:center;align-items:center;height:100vh}canvas{display:block;border:1px solid #333}</style>
+</head><body>
+
+<!-- CANVAS CON TAMAÑO EXPLÍCITO EN HTML (crucial para evitar negra) -->
+<canvas id="g" width="960" height="540"></canvas>
+
+<script>
+// CORRECCIÓN 1: Obtener canvas ANTES de intentar dimensionarlo
+var cv=document.getElementById("g");
+var cx=cv.getContext("2d");
+
+// CORRECCIÓN 2: cv (no cx) es quien tiene width/height
+// El Context2D NO tiene esas propiedades, por eso no renderizaba bien
+cv.width=960;
+cv.height=540;
+
+// Estado del juego
+var FY=345,ph=0,pt=0,fadeA=1,done=false,wf=0,wt=0;
+
+// Diálogo sistema (corregida duplicación de variable dL)
+var dialogLines=[],dialogIndex=0,dialogChar=0,
+    dialogTimer=0,dialogFinished=false,dialogSpeaker="",dialogNode=false,dialogText="";
+
+function startDialog(lines, speaker){
+    dialogLines=lines||[];
+    dialogIndex=0;
+    dialogChar=0;
+    dialogFinished=false;
+    dialogTimer=performance.now();
+    dialogNode=(lines&&lines.length>0);
+}
+
+function advanceDialog(){
+    if(!dialogNode) return false;
+    if(!dialogFinished){
+        dialogFinished=true;
+        return false;
+    }
+    dialogIndex++;
+    dialogChar=0;
+    dialogFinished=false;
+    dialogTimer=performance.now();
+    if(dialogIndex>=dialogLines.length){
+        dialogNode=false;
+        return true;
+    }
+    return true;
+}
+
+function updateDialog(){
+    if(!dialogNode||dialogFinished)return;
+    if(performance.now()-dialogTimer>=30){
+        dialogChar++;
+        dialogTimer=performance.now();
+        var line=dialogLines[dialogIndex]||"";
+        if(dialogChar>=line.length)dialogFinished=true;
+    }
+}
+
+// Fases del juego
+var phases=[
+    {scene:"title", action:"show_title"},
+    {scene:"intro_text", action:"text_1"},
+    {scene:"end", action:"game_over"}
+];
+
+function drawTitle(){
+    // Fondo
+    cx.fillStyle="#050812";
+    cx.fillRect(0,0,960,540);
+    
+    // Título con efecto latido
+    cx.fillStyle="#00FF88";
+    cx.font="bold 72px sans-serif";
+    cx.textAlign="center";
+    cx.textBaseline="middle";
+    cx.fillText("ALEXO",480,260);
+    
+    // Texto parpadeante
+    var blink=0.3+0.7*Math.sin(pt*0.03);
+    cx.fillStyle="rgba(200,200,220,"+blink.toFixed(2)+")";
+    cx.font="18px monospace";
+    cx.fillText("[ clic para continuar ]",480,330);
+    
+    cx.textAlign="left";
+    cx.textBaseline="top";
+}
+
+function drawIntro(){
+    // Fase intermedia si quieres añadir contenido antes del end
+    cx.fillStyle="#000000";
+    cx.fillRect(0,0,960,540);
+    cx.fillStyle="#FFFFFF";
+    cx.font="24px serif";
+    cx.textAlign="center";
+    cx.fillText("Historia...",480,270);
+    cx.fillText("(clic)",480,320);
+    cx.textAlign="left";
+    cx.textBaseline="top";
+}
+
+function drawEnd(){
+    cx.fillStyle="#050810";
+    cx.fillRect(0,0,960,540);
+    cx.fillStyle="#00FF88";
+    cx.font="bold 28px sans-serif";
+    cx.textAlign="center";
+    cx.textBaseline="middle";
+    cx.fillText("Alexo ya no esta.",480,250);
+    
+    var blink2=0.4+0.6*Math.sin(pt*0.04);
+    cx.fillStyle="rgba(180,180,180,"+blink2.toFixed(2)+")";
+    cx.font="16px monospace";
+    cx.fillText("> clic para ir al menu <",480,300);
+    cx.textAlign="left";
+    cx.textBaseline="top";
+}
+
+function drawFade(){
+    if(fadeA<=0)return;
+    cx.fillStyle="rgba(5,8,18,"+fadeA.toFixed(3)+")";
+    cx.fillRect(0,0,960,540);
+}
+
+function nextPhase(){
+    ph++;
+    pt=0;
+    if(ph>=phases.length){
+        done=true;
+        return;
+    }
+    // Resetear vars específicas de fase aquí si fuera necesario
+    wf=0;
+    wt=0;
+    
+    // Debug visible (comenta esto si no lo quieres)
+    console.log("Fase cambiada a:", phases[ph].scene);
+}
+
+// INPUT MANAGER
+cv.addEventListener("click", function(e){
+    e.preventDefault(); // Prevenir scroll en móvil
+    
+    if(done){
+        alert("Iría al menú principal");
+        window.location.href="index.html";
+        return;
+    }
+    
+    // Fase 0 = Title screen
+    if(ph===0){
+        nextPhase();
+        return;
+    }
+    
+    // Sistema de diálogos (si estuviera activo)
+    if(dialogNode){
+        var advanced=advanceDialog();
+        if(advanced)nextPhase();
+        return;
+    }
+    
+    // Click genérico en otras fases (como intro)
+    if(ph===1){
+        nextPhase();
+        return;
+    }
+});
+
+// GAME LOOP
+function loop(){
+    try {
+        cx.clearRect(0,0,960,540);
+        
+        updateDialog();
+        pt++;
+        
+        // Fade out al iniciar
+        if(fadeA>0){
+            fadeA-=0.015;
+            if(fadeA<0)fadeA=0;
+        }
+        
+        // Estado final
+        if(done){
+            drawEnd();
+            drawFade();
+            requestAnimationFrame(loop);
+            return;
+        }
+        
+        // Maquina de estados por fases
+        var currentPhase=phases[ph];
+        var sceneType=currentPhase.scene;
+        
+        switch(sceneType){
+            case "title":
+                drawTitle();
+                break;
+            case "intro_text":
+                drawIntro();
+                break;
+            case "end":
+                drawEnd();
+                break;
+            default:
+                cx.fillStyle="red";
+                cx.fillText("Fase desconocida: "+sceneType,20,20);
+        }
+        
+        drawFade();
+        requestAnimationFrame(loop);
+        
+    } catch(err) {
+        document.body.innerHTML='<div style="color:red;padding:20px;font-family:monospace">Error en loop:<br>'+err.message+'<br>Linea: '+err.lineNumber+'</div>';
+        throw err; // Relanzar para verlo en consola también
+    }
+};
+
+// Iniciar loop
+requestAnimationFrame(loop);
+
+console.log("Alexo v2 cargado. Canvas:", cv.width+"x"+cv.height);
+</script></body></html>

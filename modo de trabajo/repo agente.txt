@@ -1,0 +1,3 @@
+Repo: https://github.com/diagonal0054-max/mi-juego-html
+Antes de tocar nada, lee el archivo /docs/AGENT_RULES.md y respeta todas las reglas.
+Tarea actual: ...

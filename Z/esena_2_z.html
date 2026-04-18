@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alexo: El Rescate - Versión Definitiva</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Condensed:wght@300;400;700&family=Playfair+Display:ital,wght@1,400&display=swap');
+
+        :root {
+            --primary: #00FF88;
+            --danger: #FF4400;
+            --ui-bg: rgba(0, 0, 0, 0.85);
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Roboto Condensed', sans-serif;
+            overflow: hidden;
+            color: var(--text-main);
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px;
+            height: 540px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+            background: #050505;
+            overflow: hidden;
+            cursor: pointer;
+            border-top: 40px solid #000;
+            border-bottom: 40px solid #000;
+            box-sizing: content-box; 
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 40px;
+        }
+
+        #subtitle-box {
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            width: 100%;
+            min-height: 80px;
+            display: none;
+            text-align: center;
+            padding-top: 20px;
+            pointer-events: none;
+        }
+
+        #subtitle-text {
+            font-family: 'Roboto Condensed', sans-serif;
+            font-size: 22px;
+            color: #FFF;
+            text-shadow: 0 2px 4px #000;
+            letter-spacing: 0.5px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #prompt-indicator {
+            position: absolute;
+            bottom: 60px;
+            right: 40px;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            animation: pulse 2s infinite;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 60px;
+            color: var(--primary);
+            text-shadow: 0 0 30px var(--primary);
+            margin: 0;
+            letter-spacing: 5px;
+        }
+
+        .btn-start {
+            margin-top: 40px;
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-start:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        
+        .film-grain {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 50; opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="g" width="960" height="540"></canvas>
+        <div class="film-grain"></div>
+
+        <div id="title-screen">
+            <h1>ALEXO</h1>
+            <p style="color: #888; margin-top: 10px;">PROTOCOLO: EMPATÍA</p>
+            <button class="btn-start" id="start-btn">INICIAR SECUENCIA</button>
+        </div>
+
+        <div id="ui-layer">
+            <div id="subtitle-box">
+                <div id="subtitle-text"></div>
+            </div>
+            <div id="prompt-indicator">▼ AVANZAR</div>
+        </div>
+    </div>
+
+<script>
+/**
+ * ALEXO: CINEMATIC ENGINE (FINAL VERSION)
+ * Base mantenida. Mejoras: Ian (2 ojos), Detalles Salón, Secuencia extendida, Infrarrojos, Turbinas.
+ */
+class CinematicGame {
+    constructor() {
+        this.canvas = document.getElementById('g');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        this.floorY = 380; 
+
+        // Camera System
+        this.camera = { x: 480, y: 270, targetX: 480, targetY: 270, shake: 0 };
+
+        // UI
+        this.uiTitle = document.getElementById('title-screen');
+        this.uiSubBox = document.getElementById('subtitle-box');
+        this.uiSubText = document.getElementById('subtitle-text');
+        this.uiPrompt = document.getElementById('prompt-indicator');
+
+        // State
+        this.state = 'TITLE'; 
+        this.stepIndex = 0;
+        this.waitingForInput = false;
+        
+        // Entities
+        this.alexo = { x: 480, y: this.floorY, state: 'IDLE', facing: -1, frame: 0, animState: 'WORK' };
+        this.kid = { x: 0, y: 0, visible: false, state: 'HIDING' }; 
+        this.ian = { x: 900, y: this.floorY, visible: false, state: 'IDLE', holdingTray: true, holdingPaper: false };
+        this.rescuers = []; // Array for firemen
+
+        // Environment
+        this.ambience = { fire: 0, smoke: 0, darkness: 0, infrared: false, fog: 0 };
+        this.particles = [];
+        this.time = 0;
+
+        // Script
+        this.script = this.getDirectorScript();
+
+        // Init
+        document.getElementById('start-btn').addEventListener('click', () => this.start());
+        document.getElementById('game-container').addEventListener('click', () => this.handleInput());
+        
+        this.loop = this.loop.bind(this);
+    }
+
+    start() {
+        this.uiTitle.style.display = 'none';
+        this.state = 'PLAYING';
+        this.runStep();
+        requestAnimationFrame(this.loop);
+    }
+
+    // === GUION ACTUALIZADO ===
+    getDirectorScript() {
+        return [
+            // --- ACT 1: EL SALÓN DETALLADO ---
+            { 
+                type: 'SCENE', 
+                bg: 'SALON_DTL', 
+                cam: { x: 480, y: 300 }, 
+                action: () => { 
+                    this.alexo.x = 300; 
+                    this.alexo.animState = 'WORK';
+                    this.ian.visible = true; 
+                    this.ian.x = 900;
+                    this.ian.holdingTray = true;
+                } 
+            },
+            { type: 'WAIT', frames: 60 }, // Pausa inicial para apreciar detalles
+            { type: 'CAMERA_MOVE', x: 300, y: 350, speed: 0.03 }, // Zoom en Alexo
+            { type: 'DIALOG', text: "Todo parece estar en orden.", speaker: "ALEXO (SYSTEM)" },
+            { type: 'WAIT', frames: 40 },
+            { type: 'MOVE', actor: 'ALEXO', x: 700, y: 350, speed: 2 }, // Alexo va a la ventana
+            { type: 'CAMERA_MOVE', x: 700, y: 300, speed: 0.02 }, 
+            { type: 'DIALOG', text: "Qué bella está la noche.", speaker: "ALEXO" },
+            
+            // Ian se acerca
+            { type: 'MOVE', actor: 'IAN', x: 600, y: this.floorY, speed: 2.5 },
+            { type: 'DIALOG', text: "Si, se perfila una linda noche.", speaker: "Ian" },
+            
+            // --- ACT 2: LA VENTANA Y EL DIQUE ---
+            { 
+                type: 'SCENE', 
+                bg: 'WINDOW_RIVER', 
+                cam: { x: 480, y: 300 }, 
+                action: () => { 
+                    this.ian.x = 600; 
+                    this.alexo.x = 750;
+                } 
+            },
+            { type: 'CAMERA_MOVE', x: 750, y: 300, speed: 0.02 }, // Enfoque Alexo contemplando
+            { type: 'DIALOG', text: "Las aguas del río están en calma.", speaker: "ALEXO" },
+            { type: 'WAIT', frames: 100 }, // Tiempo considerable de contemplación
+            
+            // Zoom de visión Alexo
+            { type: 'CAMERA_MOVE', x: 900, y: 280, speed: 0.005 }, // Zoom muy lento al otro lado
+            { type: 'EFFECT', name: 'FOG_APPEAR' }, // Niebla aparece
+            { type: 'WAIT', frames: 60 },
+            { type: 'DIALOG', text: "Algo no está bien del otro lado del dique.", speaker: "ALEXO" },
+            
+            // La Sirena
+            { type: 'EFFECT', name: 'SIREN_LIGHT' }, // Parpadeo rojo/azul
+            { type: 'DIALOG', text: "¿Escuchas eso? Parece una ambulancia...", speaker: "ALEXO" },
+            { type: 'DIALOG', text: "Un ulular a toda velocidad. Podría ser un incidente aquí cerca.", speaker: "Ian" },
+            { type: 'DIALOG', text: "Debo ir a ver que sucede.", speaker: "ALEXO" },
+            { type: 'DIALOG', text: "Bueno ve, pero con cuidado y regresa pronto.", speaker: "Ian" },
+            
+            // --- ACT 3: SALIDA Y TRASLADO (TURBINAS) ---
+            { type: 'SCENE', bg: 'STREET_RUN', cam: { x: 0, y: 300 }, action: () => { this.alexo.x = 100; this.alexo.state = 'FLY'; this.ian.visible = false; } },
+            { type: 'CAMERA_MOVE', x: 2000, y: 300, speed: 0.01 }, // Movimiento rápido
+            { type: 'DIALOG', text: "Iniciando propulsores. Ruta óptima calculada.", speaker: "ALEXO" },
+            { type: 'EFFECT', name: 'SMOKE_CLOUD' }, // Gran humareda antes de llegar
+            { type: 'WAIT', frames: 120 },
+            
+            // --- ACT 4: INTERIOR Y PISO 11 ---
+            { type: 'SCENE', bg: 'HALLWAY_DARK', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 480; this.alexo.y = 400; this.alexo.state = 'WALK'; this.ambience.darkness = 0.9; this.alexo.state = 'IDLE'; } },
+            { type: 'DIALOG', text: "Ingresando por puerta de servicio...", speaker: "ALEXO" },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 150, speed: 2 }, // Ascenso
+            { type: 'CAMERA_MOVE', x: 480, y: 150, speed: 0.04 },
+            { type: 'DIALOG', text: "Mis sensores me dicen que pasa algo en el piso once.", speaker: "ALEXO" },
+            { type: 'DIALOG', text: "...Socorro...", speaker: "???", style: "italic" }, // Voz muy baja
+            { type: 'WAIT', frames: 40 },
+            { type: 'DIALOG', text: "Detecto una señal de vida. Piso once.", speaker: "ALEXO" },
+            
+            // --- ACT 5: EL DEPARTAMENTO (INFRARROJOS) ---
+            { 
+                type: 'SCENE', 
+                bg: 'APARTMENT_FIRE', 
+                cam: { x: 480, y: 270 }, 
+                action: () => { 
+                    this.alexo.x = 300; 
+                    this.alexo.y = 350; 
+                    this.kid.visible = true; 
+                    this.kid.x = 700; 
+                    this.kid.y = 380;
+                    this.kid.state = 'HIDING';
+                    this.ambience.fire = 0.5; 
+                    this.ambience.infrared = true; // ACTIVAR INFRARROJOS
+                }},
+            { type: 'DIALOG', text: "Activando visión infrarroja.", speaker: "ALEXO" },
+            { type: 'WAIT', frames: 60 },
+            { type: 'DIALOG', text: "Veo a través de la cortina de humo...", speaker: "ALEXO" },
+            { type: 'MOVE', actor: 'ALEXO', x: 600, speed: 4 },
+            { type: 'DIALOG', text: "Hay alguien bajo la mesa.", speaker: "ALEXO" },
+            { type: 'MOVE', actor: 'ALEXO', x: 650, speed: 1 },
+            { type: 'DIALOG', text: "No tengas miedo... todo va a estar bien.", speaker: "ALEXO" },
+            { type: 'ANIMATION', actor: 'BOTH', anim: 'HUG' },
+            { type: 'WAIT', frames: 100 },
+            
+            // --- ACT 6: ESCAPE Y RESCATISTAS ---
+            { type: 'SCENE', bg: 'STAIRS_DOWN', cam: { x: 480, y: 400 }, action: () => { this.alexo.state = 'CARRY'; this.alexo.x = 480; this.alexo.y = 400; this.ambience.infrared = false; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 100, speed: 3 },
+            { type: 'CAMERA_MOVE', x: 480, y: 100, speed: 0.04 },
+            
+            // Piso 3
+            { type: 'SCENE', bg: 'HALLWAY_LIGHT', cam: { x: 480, y: 270 }, action: () => { this.alexo.y = 270; this.ambience.fire = 0; this.ambience.darkness = 0.3; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 400, speed: 2 }, // Se detiene
+            
+            // Generar Rescatistas
+            { type: 'SPAWN_RESCUERS' },
+            { type: 'MOVE_RESCUERS', x: 450, speed: 2 },
+            
+            { type: 'DIALOG', text: "¡Toma al niño! Está inconsciente pero respira.", speaker: "ALEXO" },
+            { type: 'ANIMATION', actor: 'HANDOFF' },
+            { type: 'DIALOG', text: "Lo tenemos. Gracias, unidad...", speaker: "RESCATISTA" },
+            
+            // --- ACT 7: SALIDA FINAL ---
+            { type: 'MOVE', actor: 'ALEXO', x: -100, speed: 3 }, // Se aleja rápido
+            { type: 'SCENE', bg: 'EXIT_DOOR', cam: { x: 480, y: 270 }, action: () => { this.alexo.x = 500; this.alexo.y = 270; } },
+            { type: 'MOVE', actor: 'ALEXO', x: 480, y: 350, speed: 1.5 },
+            { type: 'WAIT', frames: 60 },
+            { type: 'FADE_TO_BLACK' },
+            { type: 'END' }
+        ];
+    }
+
+    runStep() {
+        if (this.stepIndex >= this.script.length) return;
+        const step = this.script[this.stepIndex];
+        this.uiPrompt.style.opacity = '0';
+        this.uiSubBox.style.display = 'none';
+
+        switch(step.type) {
+            case 'SCENE':
+                this.scene = step.bg;
+                this.camera.targetX = step.cam.x;
+                this.camera.targetY = step.cam.y;
+                if (step.action) step.action();
+                this.nextStep(); 
+                break;
+            case 'CAMERA_MOVE':
+                this.camera.targetX = step.x;
+                this.camera.targetY = step.y;
+                this.nextStep();
+                break;
+            case 'DIALOG':
+                this.uiSubBox.style.display = 'block';
+                this.uiSubText.style.opacity = '0';
+                this.uiSubText.innerText = (step.speaker ? step.speaker + ": " : "") + step.text;
+                if (step.style === 'italic') this.uiSubText.style.fontStyle = 'italic';
+                else this.uiSubText.style.fontStyle = 'normal';
+                
+                setTimeout(() => this.uiSubText.style.opacity = '1', 100);
+                this.waitingForInput = true;
+                this.uiPrompt.style.opacity = '1';
+                break;
+            case 'MOVE':
+                this.handleMovement(step);
+                break;
+            case 'WAIT':
+                setTimeout(() => this.nextStep(), (step.frames / 60) * 1000);
+                break;
+            case 'ANIMATION':
+                if (step.anim === 'HUG') {
+                    this.alexo.state = 'IDLE';
+                    this.kid.x = this.alexo.x; 
+                }
+                this.nextStep();
+                break;
+            case 'EFFECT':
+                if (step.name === 'FOG_APPEAR') this.ambience.fog = 1;
+                if (step.name === 'SIREN_LIGHT') this.triggerSiren();
+                if (step.name === 'SMOKE_CLOUD') this.ambience.fire = 0.8;
+                this.nextStep();
+                break;
+            case 'SPAWN_RESCUERS':
+                this.rescuers = [
+                    { x: 900, y: this.floorY, color: '#FFD700' },
+                    { x: 930, y: this.floorY, color: '#FFD700' }
+                ];
+                this.nextStep();
+                break;
+            case 'MOVE_RESCUERS':
+                this.handleGroupMove(this.rescuers, step.x, step.speed, () => this.nextStep());
+                break;
+            case 'FADE_TO_BLACK':
+                this.ambience.darkness = 1;
+                setTimeout(() => this.nextStep(), 2000);
+                break;
+            case 'END':
+                this.state = 'END';
+                this.uiSubText.innerText = "FIN DE LA TRANSMISIÓN";
+                this.uiSubBox.style.display = 'block';
+                this.uiSubText.style.opacity = '1';
+                break;
+        }
+    }
+
+    handleMovement(step) {
+        const actor = step.actor === 'ALEXO' ? this.alexo : (step.actor === 'KID' ? this.kid : this.ian);
+        const target = step.x; 
+        const animateMove = () => {
+            const dx = target - actor.x;
+            const dy = (step.y !== undefined ? step.y : actor.y) - actor.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < step.speed) {
+                actor.x = target;
+                actor.y = step.y !== undefined ? step.y : actor.y;
+                this.nextStep();
+            } else {
+                actor.x += (dx/dist) * step.speed;
+                actor.y += (dy/dist) * step.speed;
+                requestAnimationFrame(animateMove);
+            }
+        };
+        animateMove();
+    }
+
+    handleGroupMove(group, targetX, speed, callback) {
+        let allArrived = true;
+        group.forEach(actor => {
+            const dx = targetX - actor.x;
+            if (Math.abs(dx) > speed) {
+                actor.x += Math.sign(dx) * speed;
+                allArrived = false;
+            } else {
+                actor.x = targetX;
+            }
+        });
+        if (!allArrived) requestAnimationFrame(() => this.handleGroupMove(group, targetX, speed, callback));
+        else callback();
+    }
+
+    handleInput() {
+        if (this.state === 'END') { location.reload(); return; }
+        if (this.waitingForInput) {
+            this.waitingForInput = false;
+            this.stepIndex++;
+            this.runStep();
+        }
+    }
+
+    nextStep() {
+        this.stepIndex++;
+        this.runStep();
+    }
+
+    triggerSiren() {
+        // Visual simulation of a passing siren
+        let count = 0;
+        const flash = () => {
+            if(count > 10) return;
+            this.ctx.fillStyle = count % 2 === 0 ? "rgba(255,0,0,0.2)" : "rgba(0,0,255,0.2)";
+            this.ctx.fillRect(0,0,this.width, this.height);
+            count++;
+            setTimeout(flash, 100);
+        }
+        flash();
+    }
+
+    loop() {
+        this.time++;
+        this.update();
+        this.draw();
+        if(this.state !== 'STOPPED') requestAnimationFrame(this.loop);
+    }
+
+    update() {
+        this.camera.x += (this.camera.targetX - this.camera.x) * 0.05;
+        this.camera.y += (this.camera.targetY - this.camera.y) * 0.05;
+        if (this.camera.shake > 0) this.camera.shake *= 0.9;
+
+        this.alexo.frame = Math.sin(this.time * 0.15) * 0.5;
+
+        // Particles
+        if (this.scene === 'SALON_DTL' && Math.random() > 0.8) {
+            this.particles.push({
+                x: 200 + Math.random() * 200, y: 100 + Math.random() * 200,
+                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+                life: 1.0, type: 'DUST'
+            });
+        }
+        
+        if (this.ambience.fire > 0 && Math.random() > 0.5) {
+            this.particles.push({
+                x: Math.random() * this.width, y: this.height + 20,
+                vx: (Math.random() - 0.5) * 2, vy: -Math.random() * 3 - 1,
+                life: 1.0, type: 'FIRE'
+            });
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.01;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    draw() {
+        this.ctx.fillStyle = "#050505";
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        this.ctx.save();
+        const shakeX = (Math.random() - 0.5) * this.camera.shake;
+        const shakeY = (Math.random() - 0.5) * this.camera.shake;
+        this.ctx.translate(this.width/2 - this.camera.x + shakeX, this.height/2 - this.camera.y + shakeY);
+
+        if (this.scene === 'SALON_DTL') this.drawSalonDetailed();
+        else if (this.scene === 'WINDOW_RIVER') this.drawRiverView();
+        else if (this.scene === 'STREET_RUN') this.drawStreetRun();
+        else if (this.scene === 'HALLWAY_DARK') this.drawHallway(true);
+        else if (this.scene === 'APARTMENT_FIRE') this.drawApartment();
+        else if (this.scene === 'STAIRS_DOWN') this.drawStairs();
+        else if (this.scene === 'HALLWAY_LIGHT') this.drawHallway(false);
+        else if (this.scene === 'EXIT_DOOR') this.drawExitDoor();
+
+        if (this.alexo.visible !== false) this.drawAlexoPro(this.alexo.x, this.alexo.y, this.alexo.state, this.alexo.animState);
+        if (this.ian.visible) this.drawIanPro(this.ian.x, this.ian.y, this.ian.holdingTray, this.ian.holdingPaper);
+        if (this.kid.visible) this.drawKidPro(this.kid.x, this.kid.y, this.kid.state);
+        
+        // Draw Rescuers
+        this.rescuers.forEach(r => this.drawRescuerPro(r.x, r.y, r.color));
+
+        this.ctx.restore();
+        this.drawLighting();
+    }
+
+    // === DETAILED SCENES (MEJORADAS) ===
+    drawSalonDetailed() {
+        const ctx = this.ctx;
+        const floorGrad = ctx.createLinearGradient(0, this.floorY, 0, this.height);
+        floorGrad.addColorStop(0, "#2a2015"); floorGrad.addColorStop(1, "#1a1510");
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(-1000, this.floorY, 3000, 500);
+        ctx.fillStyle = "#3a3025";
+        ctx.fillRect(-1000, -1000, 3000, this.floorY);
+
+        // Windows
+        for(let i=0; i<4; i++) {
+            const wx = 150 + i*220; const wy = 50;
+            ctx.fillStyle = "#050510";
+            ctx.fillRect(wx, wy, 120, 200);
+            ctx.beginPath(); ctx.arc(wx+60, wy, 60, Math.PI, 0); ctx.fill();
+            // Light Beams
+            ctx.save(); ctx.globalCompositeOperation = 'overlay';
+            const lightGrad = ctx.createLinearGradient(wx, wy+200, wx+150, this.floorY+50);
+            lightGrad.addColorStop(0, "rgba(255, 255, 200, 0.1)"); lightGrad.addColorStop(1, "rgba(255, 255, 200, 0)");
+            ctx.fillStyle = lightGrad;
+            ctx.beginPath(); ctx.moveTo(wx, wy+200); ctx.lineTo(wx-50, this.floorY+50);
+            ctx.lineTo(wx+150, this.floorY+50); ctx.lineTo(wx+120, wy+200); ctx.fill();
+            ctx.restore();
+        }
+
+        // NEW: ART PAINTING (Cuadro en la pared)
+        this.drawPainting(800, 150);
+
+        // Tables
+        const tables = [250, 470, 690];
+        tables.forEach(tx => {
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.beginPath(); ctx.ellipse(tx, this.floorY, 45, 15, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#EEE";
+            ctx.beginPath(); ctx.ellipse(tx, this.floorY-5, 40, 12, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#DDD";
+            ctx.fillRect(tx-38, this.floorY-5, 76, 15);
+            ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.arc(tx-10, this.floorY, 6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "rgba(200, 200, 255, 0.4)"; ctx.fillRect(tx+10, this.floorY-2, 4, 4);
+        });
+
+        // Chandeliers
+        ctx.fillStyle = "#FFD700";
+        for(let i=0; i<3; i++) {
+            const cx = 220 + i*220;
+            ctx.globalAlpha = 0.4 + Math.sin(this.time * 0.05 + i)*0.1;
+            ctx.beginPath(); ctx.arc(cx, 40, 40, 0, Math.PI*2); ctx.fill();
+            ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 30;
+            ctx.beginPath(); ctx.arc(cx, 40, 10, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        ctx.globalAlpha = 1;
+
+        // NEW: PLANT IN CORNER (Planta en rincón)
+        this.drawPlant(100, 350);
+    }
+
+    drawPainting(x, y) {
+        const ctx = this.ctx;
+        // Frame
+        ctx.fillStyle = "#4a3020";
+        ctx.fillRect(x, y, 80, 100);
+        ctx.strokeStyle = "#FFD700";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, 80, 100);
+        // Canvas
+        ctx.fillStyle = "#e0e0e0";
+        ctx.fillRect(x+5, y+5, 70, 90);
+        // Abstract Art (Simple shapes)
+        ctx.fillStyle = "#550000"; ctx.beginPath(); ctx.arc(x+35, y+45, 20, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#003355"; ctx.fillRect(x+10, y+20, 20, 60);
+    }
+
+    drawPlant(x, y) {
+        const ctx = this.ctx;
+        // Pot
+        ctx.fillStyle = "#8B4513";
+        ctx.beginPath();
+        ctx.moveTo(x-20, y); ctx.lineTo(x+20, y); ctx.lineTo(x+15, y+40); ctx.lineTo(x-15, y+40);
+        ctx.closePath(); ctx.fill();
+        // Leaves
+        ctx.fillStyle = "#228B22";
+        const drawLeaf = (lx, ly, rot, scale) => {
+            ctx.save(); ctx.translate(lx, ly); ctx.rotate(rot); ctx.scale(scale, scale);
+            ctx.beginPath(); ctx.ellipse(0, -20, 10, 30, 0, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        };
+        drawLeaf(x, y-20, 0.5, 1);
+        drawLeaf(x, y-20, -0.5, 1);
+        drawLeaf(x, y-30, 0, 1.2);
+        drawLeaf(x, y-30, 0.2, 1);
+        drawLeaf(x, y-30, -0.2, 1);
+    }
+
+    drawRiverView() {
+        const ctx = this.ctx;
+        const grad = ctx.createLinearGradient(0, -500, 0, 500);
+        grad.addColorStop(0, "#020210"); grad.addColorStop(0.6, "#0a0a20"); grad.addColorStop(1, "#102030");
+        ctx.fillStyle = grad; ctx.fillRect(-1000, -1000, 3000, 2000);
+        
+        // The River
+        ctx.fillStyle = "#050f1a"; ctx.fillRect(-1000, 300, 3000, 500);
+        // Reflection
+        ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.fillRect(-100, 310, 1100, 2);
+        
+        // City Distant
+        ctx.fillStyle = "#111";
+        for(let i=0; i<15; i++) {
+            let h = 100 + Math.random() * 200; let bx = i * 180 - 500;
+            ctx.fillRect(bx, 300 - h, 120, h);
+        }
+
+        // The Tower (Omega)
+        ctx.fillStyle = "#1a0505"; ctx.fillRect(850, 50, 140, 400);
+        
+        // Fog Effect
+        if (this.ambience.fog > 0) {
+            ctx.fillStyle = "rgba(200,200,200,0.2)";
+            ctx.beginPath(); ctx.arc(920, 300, 100, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Fire
+        const fireGlow = this.ambience.fire * 10; 
+        if (this.ambience.fire > 0) {
+            ctx.shadowBlur = 50 + fireGlow; ctx.shadowColor = "orange";
+            ctx.fillStyle = `rgba(255, 100, 0, ${0.2 + this.ambience.fire})`;
+            ctx.beginPath(); ctx.arc(920, 150, 60, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    }
+    
+    drawStreetRun() {
+        this.ctx.fillStyle = "#111";
+        this.ctx.beginPath(); this.ctx.moveTo(-1000, this.floorY); this.ctx.lineTo(10000, this.floorY); 
+        this.ctx.lineTo(10000, this.height+200); this.ctx.lineTo(-1000, this.height+200); this.ctx.fill();
+        this.ctx.fillStyle = "#050505";
+        for(let i = -10; i < 50; i++) {
+            this.ctx.fillRect(i * 300, 100, 200, this.height);
+        }
+        const fireWorldX = 2000;
+        this.ctx.shadowBlur = 100; this.ctx.shadowColor = "red";
+        this.ctx.fillStyle = "rgba(255, 50, 0, 0.2)"; this.ctx.fillRect(fireWorldX - 200, 0, 400, 600);
+        this.ctx.shadowBlur = 0;
+    }
+    drawHallway(isDark) {
+        this.ctx.fillStyle = "#0a0a0a"; this.ctx.fillRect(-500, -200, 2000, 800);
+        this.ctx.fillStyle = "#151515"; this.ctx.fillRect(-500, -200, 2000, 200);
+        this.ctx.fillRect(-500, 400, 2000, 200);
+        this.ctx.strokeStyle = "#333"; this.ctx.beginPath();
+        this.ctx.moveTo(-400, 400); this.ctx.lineTo(400, 100);
+        this.ctx.moveTo(1400, 400); this.ctx.lineTo(600, 100); this.ctx.stroke();
+        if (isDark) {
+            this.ctx.shadowBlur = 80; this.ctx.shadowColor = "red";
+            this.ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+            this.ctx.beginPath(); this.ctx.arc(480, 100, 50, 0, Math.PI*2); this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+        }
+    }
+    drawApartment() {
+        this.ctx.fillStyle = "#2a1005"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.shadowBlur = 60; this.ctx.shadowColor = "orange";
+        this.ctx.fillStyle = "#ff4400"; this.ctx.fillRect(600, 50, 200, 200);
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = "#1a0a00";
+        this.ctx.fillRect(100, 350, 150, 80); // Table where kid hides
+        this.ctx.fillStyle = "rgba(0,0,0,0.5)"; this.ctx.fillRect(0, 0, 960, 540);
+    }
+    drawStairs() {
+        this.ctx.fillStyle = "#111"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.strokeStyle = "#222"; this.ctx.lineWidth = 4;
+        for(let i=0; i<10; i++) {
+            let y = 50 + i * 50;
+            this.ctx.beginPath(); this.ctx.moveTo(300, y); this.ctx.lineTo(660, y); this.ctx.stroke();
+        }
+        this.ctx.strokeStyle = "#444"; this.ctx.beginPath();
+        this.ctx.moveTo(310, 50); this.ctx.lineTo(310, 550);
+        this.ctx.moveTo(650, 50); this.ctx.lineTo(650, 550); this.ctx.stroke();
+    }
+    drawExitDoor() {
+        this.ctx.fillStyle = "#080808"; this.ctx.fillRect(0, 0, 960, 540);
+        this.ctx.fillStyle = "#222"; this.ctx.fillRect(400, 150, 160, 300);
+        this.ctx.strokeStyle = "#444"; this.ctx.strokeRect(400, 150, 160, 300);
+        this.ctx.shadowBlur = 50; this.ctx.shadowColor = "#00FF88";
+        this.ctx.fillStyle = "rgba(0, 255, 136, 0.1)";
+        this.ctx.fillRect(410, 160, 140, 280); this.ctx.shadowBlur = 0;
+    }
+
+    // === CHARACTERS ===
+
+    drawAlexoPro(x, y, state, animState) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        
+        // Hover effect for FLY mode
+        let hoverOffset = 0;
+        if (state === 'FLY') {
+            hoverOffset = -15; // Eleva 15px
+        }
+
+        let workLean = 0;
+        if (animState === 'WORK') workLean = Math.sin(this.time * 0.05) * 0.2;
+
+        if (state === 'RUN' || state === 'FLY') ctx.rotate(0.2);
+        const bob = Math.sin(this.time * (state==='FLY'?0.4:(state==='RUN'?0.3:0.1))) * (state === 'FLY' ? 2 : (state === 'RUN' ? 5 : 2));
+        
+        // Shadow (Smaller if hovering)
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        const shadowSize = state === 'FLY' ? 20 : 35;
+        const shadowAlpha = state === 'FLY' ? 0.3 : 0.6;
+        ctx.globalAlpha = shadowAlpha;
+        ctx.beginPath(); ctx.ellipse(0, 45, shadowSize, 12, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Turbinas/Exhaust
+        if (state === 'FLY') {
+            ctx.fillStyle = "rgba(0, 200, 255, 0.6)";
+            ctx.beginPath(); ctx.moveTo(-10, 30); ctx.lineTo(-5, 45); ctx.lineTo(0, 30); ctx.fill(); // Left thruster
+            ctx.beginPath(); ctx.moveTo(10, 30); ctx.lineTo(5, 45); ctx.lineTo(0, 30); ctx.fill(); // Right thruster
+        }
+
+        // Legs
+        const legSwing = Math.sin(this.time * (state==='FLY'?0.4:(state==='RUN'?0.3:0.05))) * (state === 'FLY' ? 10 : (state === 'RUN' ? 25 : 5));
+        const drawLeg = (side, swing) => {
+            ctx.save(); ctx.translate(side*12, 40 + hoverOffset + bob); ctx.rotate(swing*side*0.02);
+            ctx.fillStyle = "#555"; ctx.fillRect(-6, -20, 12, 25);
+            ctx.beginPath(); ctx.arc(0, 5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.save(); ctx.rotate(swing*side*0.04);
+            ctx.fillStyle = "#444"; ctx.fillRect(-5, 5, 10, 25);
+            ctx.fillStyle = "#333"; ctx.fillRect(-7, 28, 14, 8);
+            ctx.restore(); ctx.restore();
+        };
+        drawLeg(-1, legSwing); drawLeg(1, -legSwing);
+
+        // Body
+        ctx.save(); ctx.rotate(workLean);
+        ctx.fillStyle = "#666";
+        ctx.beginPath(); ctx.moveTo(-22, -40 + hoverOffset + bob); ctx.lineTo(22, -40 + hoverOffset + bob); 
+        ctx.lineTo(18, 40 + hoverOffset + bob); ctx.lineTo(-18, 40 + hoverOffset + bob); ctx.closePath(); ctx.fill();
+        
+        const corePulse = 0.5 + Math.sin(this.time * 0.1) * 0.5;
+        ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(0, 255, 136, ${corePulse})`;
+        ctx.beginPath(); ctx.arc(0, 0 + hoverOffset + bob, 8, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#444"; ctx.fillRect(-15, 40 + hoverOffset + bob, 30, 10);
+        ctx.restore();
+
+        // Head
+        ctx.save(); ctx.translate(0, -50 + hoverOffset + bob);
+        ctx.fillStyle = "#777";
+        ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI, 0); ctx.lineTo(22, 15); ctx.lineTo(-22, 15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#00FF88"; ctx.shadowColor="#00FF88"; ctx.shadowBlur=8;
+        ctx.fillRect(-18, -5, 36, 8); ctx.shadowBlur=0;
+        ctx.strokeStyle="#555"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(0,-35); ctx.stroke();
+        ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(0,-35, 2, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        // Arms
+        const armSwing = Math.sin(this.time * (state==='FLY'?0.2:(state==='RUN'?0.3:0.1))) * (state === 'FLY' ? 10 : (state === 'RUN' ? 30 : 5));
+        const drawArm = (side, swing) => {
+            ctx.save(); ctx.translate(side*22, -30 + hoverOffset + bob); ctx.rotate(swing*side*0.02);
+            ctx.fillStyle = "#555"; ctx.fillRect(-5, 0, 10, 25);
+            ctx.fillStyle = "#333"; ctx.fillRect(-4, 22, 8, 15);
+            ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(0, 38, 5, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        };
+        drawArm(-1, armSwing); drawArm(1, -armSwing);
+
+        if (state === 'CARRY') {
+            ctx.save(); ctx.translate(5, -30 + hoverOffset + bob);
+            ctx.fillStyle = "#dcb"; ctx.beginPath(); ctx.arc(0, -25, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#F55"; ctx.fillRect(-8, -15, 16, 20);
+            ctx.fillStyle = "#F55"; ctx.fillRect(-8, 5, 6, 15); ctx.fillRect(2, 5, 6, 15);
+            ctx.fillStyle = "#dcb"; ctx.fillRect(-15, -20, 10, 5); ctx.fillRect(5, -20, 10, 5);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    drawIanPro(x, y, hasTray, hasPaper) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        const bob = Math.sin(this.time * 0.1) * 2;
+        
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.beginPath(); ctx.ellipse(0, 5, 25, 8, 0, 0, Math.PI*2); ctx.fill();
+
+        const legSwing = Math.sin(this.time * 0.1) * 5;
+        ctx.strokeStyle = "#0a0a0a"; ctx.lineWidth = 8; ctx.lineCap="round";
+        ctx.beginPath(); ctx.moveTo(-8, 0+bob); ctx.lineTo(-8-legSwing, 35+bob); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, 0+bob); ctx.lineTo(8+legSwing, 35+bob); ctx.stroke();
+
+        ctx.fillStyle = "#111";
+        ctx.beginPath(); ctx.moveTo(-16, -55 + bob); ctx.lineTo(16, -55 + bob);
+        ctx.lineTo(12, 0 + bob); ctx.lineTo(-12, 0 + bob); ctx.fill();
+        ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.moveTo(0,-55+bob); ctx.lineTo(8,-50+bob); ctx.lineTo(0,-40+bob); ctx.lineTo(-8,-50+bob); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.fillRect(-5, -45+bob, 10, 4);
+
+        ctx.strokeStyle = "#111"; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(-16, -50+bob); ctx.lineTo(-18, 0+bob); ctx.stroke();
+        ctx.beginPath(); 
+        if (hasPaper) { ctx.moveTo(16, -50+bob); ctx.lineTo(30, -40+bob); } 
+        else { ctx.moveTo(16, -50+bob); ctx.lineTo(20, -15+bob); } 
+        ctx.stroke();
+
+        if (hasTray && !hasPaper) {
+            ctx.save(); ctx.translate(35, -5+bob);
+            ctx.fillStyle = "#AAA"; ctx.beginPath(); ctx.ellipse(0, 0, 25, 8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(-3, -20); ctx.lineTo(3, -20); ctx.lineTo(5, -5); ctx.fill();
+            ctx.fillStyle = "#800"; ctx.fillRect(-3, -15, 6, 8);
+            ctx.restore();
+        }
+        if (hasPaper) {
+            ctx.save(); ctx.translate(35, -50+bob); ctx.rotate(-0.3);
+            ctx.fillStyle = "#EEE"; ctx.fillRect(0, 0, 30, 40);
+            ctx.fillStyle = "#000"; ctx.font="8px monospace"; ctx.fillText("El robot...", 2, 10);
+            ctx.restore();
+        }
+
+        // HEAD & EYES (FIXED)
+        ctx.save(); ctx.translate(0, -65 + bob);
+        ctx.fillStyle = "#dcb"; ctx.beginPath(); ctx.ellipse(0, 0, 12, 15, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -12, 12, Math.PI, 0); ctx.fill();
+        
+        // FIXED: Draw two eyes (profile)
+        ctx.fillStyle = "#FFF"; // Sclera
+        ctx.beginPath(); ctx.ellipse(2, -3, 3, 4, 0.2, 0, Math.PI*2); ctx.fill(); // Eye 1
+        ctx.beginPath(); ctx.ellipse(6, -4, 1.5, 2, 0.2, 0, Math.PI*2); ctx.fill(); // Eye 2 (Visible part of second eye)
+        
+        ctx.fillStyle = "#000"; // Pupils
+        ctx.beginPath(); ctx.arc(3, -3, 1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(6.5, -4, 0.5, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
+        ctx.restore();
+    }
+
+    drawKidPro(x, y, state) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        const shake = state === 'CRY' ? (Math.random()-0.5)*3 : 0;
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(0, 10, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#d32f2f"; ctx.fillRect(-12+shake, -30, 24, 30);
+        ctx.fillStyle = "#d32f2f"; ctx.beginPath(); ctx.ellipse(-14+shake, -15, 5, 8, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(14+shake, -15, 5, 8, -0.5, 0, Math.PI*2); ctx.fill();
+        ctx.save(); ctx.translate(0+shake, -42);
+        ctx.fillStyle = "#e0ac69"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#3e2723"; ctx.beginPath(); ctx.arc(0, -10, 14, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#FFF"; ctx.beginPath(); ctx.ellipse(-5, -2, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(5, -2, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-5, -2, 1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(5, -2, 1, 0, Math.PI*2); ctx.fill();
+        if (state === 'CRY') {
+            ctx.fillStyle = "rgba(100, 149, 237, 0.7)"; ctx.beginPath(); ctx.ellipse(-5, 5, 1, 4, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(5, 5, 1, 4, 0, 0, Math.PI*2); ctx.fill();
+        } ctx.beginPath(); ctx.arc(0, 6, 3, 0, Math.PI); ctx.stroke();
+        ctx.restore(); ctx.restore();
+    }
+
+    drawRescuerPro(x, y, color) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        // Simplified Yellow Suit
+        ctx.fillStyle = color; // Yellow
+        ctx.fillRect(-15, -55, 30, 60);
+        // Helmet
+        ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(0, -65, 14, 0, Math.PI*2); ctx.fill();
+        // Visor
+        ctx.fillStyle = "#333"; ctx.fillRect(-12, -68, 24, 6);
+        ctx.restore();
+    }
+
+    drawLighting() {
+        const ctx = this.ctx;
+        
+        // INFRARED EFFECT
+        if (this.ambience.infrared) {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = "#00FF00"; ctx.fillRect(0,0,this.width, this.height);
+            ctx.globalCompositeOperation = 'source-over';
+            // Scanlines
+            ctx.fillStyle = "rgba(0, 255, 0, 0.1)";
+            for(let i=0; i<this.height; i+=4) ctx.fillRect(0, i, this.width, 1);
+        } else {
+            // Normal Lighting
+            const grad = ctx.createRadialGradient(480, 270, 100, 480, 270, 600);
+            grad.addColorStop(0, "rgba(0,0,0,0)"); grad.addColorStop(1, "rgba(0,0,0,0.8)");
+            let darkness = this.ambience.darkness;
+            if (this.scene === 'APARTMENT_FIRE') darkness = 0.4;
+            if (this.scene === 'HALLWAY_DARK') darkness = 0.8;
+
+            ctx.fillStyle = `rgba(0,0,0,${darkness})`;
+            ctx.fillRect(0, 0, this.width, this.height);
+
+            this.particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                if (p.type === 'FIRE') {
+                    ctx.fillStyle = `rgba(255, ${Math.random()*100 + 50}, 0, ${p.life})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 5 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+                } else if (p.type === 'DUST') {
+                    ctx.fillStyle = `rgba(255, 255, 220, ${p.life * 0.3})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            });
+
+            if (this.ambience.fire > 0) {
+                ctx.globalCompositeOperation = 'overlay';
+                ctx.fillStyle = `rgba(255, 50, 0, ${this.ambience.fire * 0.3})`;
+                ctx.fillRect(0, 0, this.width, this.height);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+        }
+    }
+}
+
+// Start
+window.onload = () => {
+    new CinematicGame();
+};
+</script>
+</body>
+</html>

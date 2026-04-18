@@ -1,0 +1,8 @@
+Capa	Qué mejorar	Por qué este orden
+1️⃣	Estructura del código (separar lógica, render, datos)	Sin esto, todo lo demás se rompe
+2️⃣	Mecánicas core (que el juego sea jugable sin bugs)	La base debe ser sólida
+3️⃣	Narrativa (guion, diálogos, flujo de historia)	Define qué imágenes necesitas
+4️⃣	Imágenes/Arte (sprites, fondos, UI)	Ya sabes qué necesitas exactamente
+5️⃣	Animaciones y efectos	Cosmético sobre algo que ya funciona
+6️⃣	Sonido y música	Capa final
+7️⃣	Pulido y optimización	Solo al final
