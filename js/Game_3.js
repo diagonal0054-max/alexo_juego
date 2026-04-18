@@ -4,6 +4,13 @@
 let canvas;
 let ctx;
 
+const mariposa = {
+    x: 0, y: 0, 
+    targetX: 0, targetY: 0,
+    angle: 0, wingAngle: 0,
+    active: true, perched: false
+};
+
 let frame = 0;
 let gameState = 'menu';
 let currentDialogue = 0;
@@ -86,7 +93,7 @@ function drawBackground() {
         ctx.fillRect(i, CIELO_H - h, 60, h);
         for (let y = CIELO_H - h + 10; y < CIELO_H - 10; y += 15) {
             for (let x = i + 5; x < i + 55; x += 15) {
-                // Usamos la posición i para que las luces sean fijas por edificio
+                // Luces fijas por edificio
                 if (Math.sin(i * 10 + x + y) > 0.4) {
                     ctx.fillStyle = 'rgba(255, 255, 100, 0.4)';
                     ctx.fillRect(x, y, 8, 8);
@@ -211,7 +218,6 @@ function drawNinos() {
             ctx.lineTo(x3, y3);
             ctx.stroke();
             
-            // Contorno fino opcional
             ctx.strokeStyle = outline;
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -352,6 +358,32 @@ function drawAlexo() {
     ctx.restore();
 }
 
+function drawMariposa() {
+    if (!mariposa.active) return;
+    
+    ctx.save();
+    ctx.translate(mariposa.x, mariposa.y);
+    
+    const w = 6;
+    const wingSize = 8 * Math.abs(Math.sin(frame * 0.2));
+    
+    ctx.fillStyle = '#FF00FF'; // Color mariposa
+    // Ala izquierda
+    ctx.beginPath();
+    ctx.ellipse(-w, 0, wingSize, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Ala derecha
+    ctx.beginPath();
+    ctx.ellipse(w, 0, wingSize, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cuerpo mariposa
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-1, -4, 2, 8);
+    
+    ctx.restore();
+}
+
 function drawDialogueBox() {
     if (!showDialogueBox) return;
 
@@ -400,12 +432,29 @@ function draw() {
     drawBackground();
     drawNinos();
     drawAlexo();
+    drawMariposa();
     drawDialogueBox();
 }
 
 function update() {
     frame++;
     alexo.frameWalk += 0.15;
+
+    // Lógica mariposa
+    if (mariposa.active) {
+        if (!mariposa.perched) {
+            mariposa.targetX = alexo.x + 22 + Math.sin(frame * 0.05) * 40;
+            mariposa.targetY = alexo.y - 20 + Math.cos(frame * 0.05) * 20;
+            mariposa.x += (mariposa.targetX - mariposa.x) * 0.05;
+            mariposa.y += (mariposa.targetY - mariposa.y) * 0.05;
+            
+            if (gameState === 'dialogue') mariposa.perched = true;
+        } else {
+            mariposa.x = alexo.x + 22;
+            mariposa.y = alexo.y - 12;
+            if (gameState === 'playing') mariposa.perched = false;
+        }
+    }
 
     if (gameState === 'playing') {
         alexo.x += alexo.vx;
@@ -440,7 +489,6 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && showDialogueBox) nextDialogue();
 });
 
-
 function gameLoop() {
     update();
     draw();
@@ -456,6 +504,11 @@ function iniciarJuego() {
     dialogueTriggered = false;
     const ts = document.getElementById('title-screen');
     if (ts) ts.style.display = 'none';
+    
+    // Iniciar mariposa cerca
+    mariposa.x = alexo.x;
+    mariposa.y = alexo.y - 100;
+    
     gameLoop();
 }
 
@@ -466,17 +519,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx = canvas.getContext('2d');
         canvas.width = 1000;
         canvas.height = 600;
+        
+        canvas.addEventListener('click', () => {
+            if (showDialogueBox) nextDialogue();
+        });
     }
+
     const startBtn = document.getElementById('start-btn');
     if (startBtn) {
         startBtn.addEventListener('click', iniciarJuego);
     } else {
         console.error('No se encontró #start-btn. Revisa el HTML.');
-    }
-
-    if (canvas) {
-        canvas.addEventListener('click', () => {
-            if (showDialogueBox) nextDialogue();
-        });
     }
 });
