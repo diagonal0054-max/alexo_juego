@@ -3,28 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salón de Fiestas - Juego Alexo</title>
+    <title>Alexo — Nueva Arcadia</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+        :root { --accent: #d4af37; --text: #2c2c2c; --bg-ui: rgba(255,250,240,0.95); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a14;
+            background: #1a1a1a;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            font-family: 'Lora', serif;
             overflow: hidden;
+            user-select: none;
+        }
+        #game-container {
+            position: relative;
+            /* FIX #5: mismo tamaño que canvas.width/height en JS */
+            width: 1000px;
+            height: 600px;
+            box-shadow: 0 0 60px rgba(0,0,0,0.5);
+            background: #fdfbf7;
+            overflow: hidden;
+            cursor: pointer;
+            border: 10px solid #2c2c2c;
         }
         canvas {
-            border: 2px solid #c9a84c;
-            background: #000;
-            box-shadow: 0 0 40px rgba(201, 168, 76, 0.15), 0 0 80px rgba(0, 0, 0, 0.8);
-            max-width: 100vw;
-            max-height: 100vh;
+            display: block;
+            width: 100%;
+            height: 100%;
         }
+        #title-screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #fdfbf7;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        #title-screen h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 62px;
+            color: var(--text);
+            letter-spacing: -2px;
+        }
+        #title-screen .subtitle {
+            color: #777;
+            font-style: italic;
+            margin-top: 8px;
+            font-size: 15px;
+        }
+        .btn-start {
+            margin-top: 35px;
+            background: var(--text);
+            color: #fff;
+            border: none;
+            padding: 13px 42px;
+            font-family: 'Playfair Display', serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .btn-start:hover { background: var(--accent); transform: translateY(-2px); }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="1000" height="600"></canvas>
-    <script src="js/Game_2.js"></script>
+    <main id="game-container">
+        <!-- FIX #5: width/height del canvas alineados con JS (1000x600) -->
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+
+        <!-- FIX #4: botón conectado al listener en Game_2.js via id="start-btn" -->
+        <section id="title-screen">
+            <h1>ALEXO</h1>
+            <p class="subtitle">Nueva Arcadia</p>
+            <button class="btn-start" id="start-btn">Iniciar Historia</button>
+        </section>
+    </main>
+
+    <!-- El script conecta el botón internamente, no necesita onclick inline -->
+    <script src="js/Game_3.js"></script>
 </body>
 </html>
