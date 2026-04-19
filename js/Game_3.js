@@ -121,17 +121,17 @@ function drawBackground() {
         ctx.stroke();
     }
 
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(0, RAMBLA_Y, canvas.width, MAR_Y - RAMBLA_Y);
-
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([20, 15]);
-    ctx.beginPath();
-    ctx.moveTo(0, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
-    ctx.lineTo(canvas.width, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Rambla antigua comentada según reglas
+    // ctx.fillStyle = '#2c3e50';
+    // ctx.fillRect(0, RAMBLA_Y, canvas.width, MAR_Y - RAMBLA_Y);
+    // ctx.strokeStyle = '#FFD700';
+    // ctx.lineWidth = 3;
+    // ctx.setLineDash([20, 15]);
+    // ctx.beginPath();
+    // ctx.moveTo(0, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
+    // ctx.lineTo(canvas.width, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
+    // ctx.stroke();
+    // ctx.setLineDash([]);
 }
 
 function drawNinos() {
@@ -428,8 +428,80 @@ function drawDialogueBox() {
     ctx.fillText('Presioná ESPACIO o click para continuar...', canvas.width - 320, boxY + boxH - 15);
 }
 
+function drawRamblaMejorada() {
+    if (!ctx) return;
+    
+    try {
+        // Suelo de la rambla
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(0, RAMBLA_Y, canvas.width, MAR_Y - RAMBLA_Y);
+
+        // Grietas fijas (seed basado en posición para evitar parpadeo)
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 150) {
+            ctx.beginPath();
+            ctx.moveTo(x, RAMBLA_Y);
+            let curX = x;
+            let curY = RAMBLA_Y;
+            for (let j = 0; j < 5; j++) {
+                let seed = Math.sin(x + j) * 10;
+                curX += seed;
+                curY += (MAR_Y - RAMBLA_Y) / 5;
+                ctx.lineTo(curX, curY);
+            }
+            ctx.stroke();
+        }
+
+        // Charcos de agua (reflejos azulados)
+        for (let i = 100; i < canvas.width; i += 300) {
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(i, RAMBLA_Y + 15, 40, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Faroles cada 200px
+        for (let i = 0; i < canvas.width; i += 200) {
+            const farolX = i + 50;
+            // Poste
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(farolX, RAMBLA_Y - 80, 4, 80);
+            
+            // Luz del farol con parpadeo suave
+            const glow = 0.8 + Math.sin(frame * 0.05 + i) * 0.2;
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 15 * glow;
+            ctx.fillStyle = '#FFFF00';
+            ctx.beginPath();
+            ctx.arc(farolX + 2, RAMBLA_Y - 85, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Reflejo cálido en el suelo bajo el farol
+            ctx.fillStyle = `rgba(255, 215, 0, ${0.15 * glow})`;
+            ctx.beginPath();
+            ctx.ellipse(farolX + 2, RAMBLA_Y + 10, 35, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Línea amarilla original (mejorada)
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([15, 20]);
+        ctx.beginPath();
+        ctx.moveTo(0, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
+        ctx.lineTo(canvas.width, RAMBLA_Y + (MAR_Y - RAMBLA_Y) / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } catch (e) {
+        console.error("Error en drawRamblaMejorada:", e);
+    }
+}
+
 function draw() {
     drawBackground();
+    drawRamblaMejorada();
     drawNinos();
     drawAlexo();
     drawMariposa();
